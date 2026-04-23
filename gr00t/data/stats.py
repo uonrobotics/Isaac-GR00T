@@ -25,6 +25,9 @@ from gr00t.data.state_action.pose import EndEffectorPose, JointPose
 from gr00t.data.types import ActionRepresentation, ActionType, EmbodimentTag, ModalityConfig
 from gr00t.data.utils import to_json_serializable
 
+import importlib.util as _ilu, pathlib as _pl
+_spec = _ilu.spec_from_file_location("modality_config", _pl.Path(__file__).parents[2] / "examples/PointNav/modality_config.py")
+_mod = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_mod)
 
 LE_ROBOT_DATA_FILENAME = "data/*/*.parquet"
 LE_ROBOT_INFO_FILENAME = "meta/info.json"
