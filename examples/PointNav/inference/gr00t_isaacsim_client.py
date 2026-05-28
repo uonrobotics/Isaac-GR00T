@@ -324,6 +324,9 @@ def main():
                     # Multiview checkpoints consume the "images" mapping.
                     "image": images_b64["ego_view"],
                     "images": images_b64,
+                    "image_capture_timestamp": obs_resp.get("image_capture_timestamp"),
+                    "image_capture_timestamps": obs_resp.get("image_capture_timestamps", {}),
+                    "sim_observation_timestamp": obs_resp.get("timestamp"),
                     "camera_mode": obs_resp.get("camera_mode", "single"),
                     "views": obs_resp.get("views", list(images_b64.keys())),
                     "amcl_x": float(pose["x"]),

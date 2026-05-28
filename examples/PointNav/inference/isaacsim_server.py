@@ -1075,10 +1075,12 @@ class IsaacSimServer:
         return pose
 
     @staticmethod
-    def encode_camera_jpeg(camera, max_wait_frames: int = CAMERA_MAX_WAIT_FRAMES) -> str:
+    def encode_camera_jpeg(camera, max_wait_frames: int = CAMERA_MAX_WAIT_FRAMES) -> tuple[str, float]:
         rgba = None
+        capture_timestamp = time.time()
         for _ in range(max_wait_frames):
             rgba = camera.get_rgba()
+            capture_timestamp = time.time()
             rgb_probe = np.asarray(rgba)
             if (
                 rgb_probe.size > 0
@@ -1102,7 +1104,7 @@ class IsaacSimServer:
         img = Image.fromarray(rgb)
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=90)
-        return base64.b64encode(buf.getvalue()).decode("utf-8")
+        return base64.b64encode(buf.getvalue()).decode("utf-8"), capture_timestamp
 
     def get_obs(self) -> dict:
         for _ in range(CAMERA_SETTLE_FRAMES):
@@ -1112,16 +1114,20 @@ class IsaacSimServer:
         pose = self.sync_camera_poses_to_robot()
         simulation_app.update()
         obs_timestamp = time.time()
-        images_b64 = {
-            view_name: self.encode_camera_jpeg(camera)
-            for view_name, camera in self.cameras.items()
-        }
+        images_b64 = {}
+        image_capture_timestamps = {}
+        for view_name, camera in self.cameras.items():
+            image_b64, capture_timestamp = self.encode_camera_jpeg(camera)
+            images_b64[view_name] = image_b64
+            image_capture_timestamps[view_name] = capture_timestamp
         obs = {
             "image_b64": images_b64["ego_view"],
+            "image_capture_timestamp": image_capture_timestamps["ego_view"],
             "camera_mode": self.camera_mode,
             "views": list(self.camera_configs.keys()),
             "pose": pose,
             "timestamp": obs_timestamp,
+            "image_capture_timestamps": image_capture_timestamps,
         }
         if self.camera_mode == "multiview":
             obs["images_b64"] = images_b64

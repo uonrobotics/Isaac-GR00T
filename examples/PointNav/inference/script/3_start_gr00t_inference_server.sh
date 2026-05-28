@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini_336/gr00t-finetune+sim_v2_lerobot_multiview_gemini_336--20260522/checkpoint-60000"
+# DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini_336/gr00t-finetune+sim_v2_lerobot_multiview_gemini_336--20260522/checkpoint-60000"
 
-# DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_single_gemini336l/gr00t-finetune+sim_v2_lerobot_single_gemini336l--20260522/checkpoint-60000"
+DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_single_gemini336l/gr00t-finetune+sim_v2_lerobot_single_gemini336l--20260522/checkpoint-60000"
 # DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_single_gemini345lg/gr00t-finetune+sim_v2_lerobot_single_gemini345lg--20260522/checkpoint-60000/"
 
 MODEL_PATH="${1:-$DEFAULT_MODEL_PATH}"

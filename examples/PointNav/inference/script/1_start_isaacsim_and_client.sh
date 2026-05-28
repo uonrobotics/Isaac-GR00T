@@ -4,9 +4,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/setup_IsaacSim-ros_workspace.sh"
 
-CAMERA_MODE="${1:-multiview}"
+# CAMERA_MODE="${1:-multiview}"
+CAMERA_MODE="${1:-single}"
 
-CAMERA_PRESET="${2:-gemini_336}"
+# CAMERA_PRESET="${2:-gemini_336}"
 CAMERA_PRESET="${2:-gemini_336l}"
 # CAMERA_PRESET="${2:-gemini_345lg}"
 

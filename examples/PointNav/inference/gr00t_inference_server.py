@@ -127,14 +127,17 @@ _DASHBOARD_HTML = """\
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f0f13; color: #e0e0e0; font-family: 'Courier New', monospace;
-         display: flex; flex-direction: column; align-items: center; padding: 12px; gap: 10px; overflow-x: hidden; }
+         display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 10px; overflow-x: hidden; }
   h1 { color: #76c442; font-size: 1.18rem; letter-spacing: 2px; line-height: 1.1; }
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; width: 100%; max-width: none; align-items: start; }
-  .camera-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+  .grid { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: none; }
+  .camera-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; width: 100%; }
+  .camera-strip.single { grid-template-columns: minmax(0, min(100%, 1500px)); justify-content: center; }
+  .camera-strip.single .side-card { display: none; }
   .camera-card { background: #111; border: 1px solid #333; border-radius: 8px; overflow: hidden; align-self: start; }
   .camera-card img { width: 100%; height: auto; object-fit: contain; display: block; background: #050507; }
+  .camera-strip.single .camera-card img { max-height: calc(100vh - 255px); }
   .cam-label { color: #9a9a9a; font-size: 0.68rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid #25252c; }
-  .telemetry { display: grid; gap: 10px; align-content: start; }
+  .telemetry { display: grid; grid-template-columns: 1fr 1fr 1.25fr auto; gap: 10px; align-items: stretch; }
   .panel { background: #1a1a22; border-radius: 8px; border: 1px solid #333; padding: 12px;
            display: flex; flex-direction: column; gap: 8px; }
   .row { display: flex; justify-content: space-between; align-items: center; }
@@ -153,11 +156,11 @@ _DASHBOARD_HTML = """\
   .status { font-size: 0.8rem; color: #555; }
   .status.connected { color: #76c442; }
   @media (max-width: 1200px) {
-    .grid { grid-template-columns: 1fr; }
     .telemetry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 860px) {
     .camera-strip { grid-template-columns: 1fr; }
+    .camera-strip.multiview .side-card { display: block; }
     .telemetry { grid-template-columns: 1fr; }
   }
 </style>
@@ -165,16 +168,16 @@ _DASHBOARD_HTML = """\
 <body>
 <h1>&#9632; GR00T VLA Dashboard</h1>
 <div class="grid">
-  <div class="camera-strip">
-    <div class="camera-card">
+  <div class="camera-strip multiview" id="camera_strip">
+    <div class="camera-card side-card" id="card_left">
       <div class="cam-label">Left View</div>
       <img id="cam_left" src="/image/left_view" alt="left view">
     </div>
-    <div class="camera-card">
+    <div class="camera-card ego-card" id="card_ego">
       <div class="cam-label">Ego View</div>
       <img id="cam_ego" src="/image/ego_view" alt="ego view">
     </div>
-    <div class="camera-card">
+    <div class="camera-card side-card" id="card_right">
       <div class="cam-label">Right View</div>
       <img id="cam_right" src="/image/right_view" alt="right view">
     </div>
@@ -185,6 +188,7 @@ _DASHBOARD_HTML = """\
       <div class="row"><span class="label">AMCL Y</span><span class="value" id="py">—</span></div>
       <div class="row"><span class="label">Yaw</span>  <span class="value" id="yaw">—</span></div>
       <div class="row"><span class="label">Dist to Goal</span><span class="value green" id="dist">—</span></div>
+      <div class="row"><span class="label">Cam→Input</span><span class="value" id="latency">—</span></div>
     </div>
     <div class="panel">
       <div class="label">Linear cmd (m/s)</div>
@@ -199,18 +203,31 @@ _DASHBOARD_HTML = """\
       <div class="row"><span class="label">Step</span> <span class="value" id="step">—</span></div>
       <div class="row"><span class="label">Goal</span> <span class="value green" id="goal">—</span></div>
       <div class="row"><span class="label">Goal Heading</span><span class="value" id="gh_deg">—</span></div>
+    </div>
+    <div class="panel">
       <div class="viz-grid">
         <div class="viz-card"><canvas id="compass" width="160" height="160"></canvas></div>
         <div class="viz-card"><canvas id="map" width="160" height="160"></canvas></div>
       </div>
     </div>
-    <div class="row"><span class="status" id="conn_status">● waiting…</span></div>
+    <div class="row" style="align-self:center"><span class="status" id="conn_status">● waiting…</span></div>
   </div>
 </div>
 <script>
 const MAX_TRAIL = 300;
 let trail = [];
 let goal  = null;
+let cameraMode = "multiview";
+
+function setCameraMode(mode, views) {
+  const hasMultiview = mode === "multiview" || (
+    Array.isArray(views) &&
+    views.includes("left_view") &&
+    views.includes("right_view")
+  );
+  cameraMode = hasMultiview ? "multiview" : "single";
+  document.getElementById("camera_strip").className = "camera-strip " + cameraMode;
+}
 
 function barUpdate(id, val, maxVal) {
   const bar = document.getElementById(id);
@@ -312,10 +329,12 @@ es.onopen    = () => { document.getElementById("conn_status").textContent = "●
 es.onerror   = () => { document.getElementById("conn_status").textContent = "● disconnected"; document.getElementById("conn_status").className = "status"; };
 es.onmessage = e => {
   const d = JSON.parse(e.data);
+  setCameraMode(d.camera_mode, d.views);
   document.getElementById("px"  ).textContent = d.robot_x   !== undefined ? d.robot_x.toFixed(3)   : "—";
   document.getElementById("py"  ).textContent = d.robot_y   !== undefined ? d.robot_y.toFixed(3)   : "—";
   document.getElementById("yaw" ).textContent = d.robot_yaw !== undefined ? (d.robot_yaw * 180/Math.PI).toFixed(1) + "°" : "—";
   document.getElementById("dist").textContent = d.dist      !== undefined ? d.dist.toFixed(3) + " m" : "—";
+  document.getElementById("latency").textContent = d.camera_to_model_input_ms !== undefined ? d.camera_to_model_input_ms.toFixed(1) + " ms" : "—";
   document.getElementById("vx"  ).textContent = d.vx        !== undefined ? d.vx.toFixed(4)  : "—";
   document.getElementById("wz"  ).textContent = d.wz        !== undefined ? d.wz.toFixed(4)  : "—";
   document.getElementById("spd" ).textContent = d.speed     !== undefined ? d.speed.toFixed(3) : "—";
@@ -341,9 +360,11 @@ es.onmessage = e => {
 // image polling
 function refreshImage() {
   const t = Date.now();
-  document.getElementById("cam_left").src = "/image/left_view?" + t;
   document.getElementById("cam_ego").src = "/image/ego_view?" + t;
-  document.getElementById("cam_right").src = "/image/right_view?" + t;
+  if (cameraMode === "multiview") {
+    document.getElementById("cam_left").src = "/image/left_view?" + t;
+    document.getElementById("cam_right").src = "/image/right_view?" + t;
+  }
 }
 setInterval(refreshImage, 100);
 </script>
@@ -576,6 +597,28 @@ def get_policy_video_keys(policy) -> list[str]:
     return ["ego_view"]
 
 
+def compute_camera_latency_ms(req: dict, model_input_timestamp: float, video_keys: list[str]) -> tuple[float | None, dict]:
+    capture_timestamps = req.get("image_capture_timestamps")
+    if not isinstance(capture_timestamps, dict):
+        capture_timestamps = {}
+    if "ego_view" not in capture_timestamps and isinstance(req.get("image_capture_timestamp"), (int, float)):
+        capture_timestamps["ego_view"] = req["image_capture_timestamp"]
+
+    per_view_ms = {}
+    for view_name in video_keys:
+        ts = capture_timestamps.get(view_name)
+        if isinstance(ts, (int, float)):
+            per_view_ms[view_name] = max(0.0, (model_input_timestamp - float(ts)) * 1000.0)
+
+    if "ego_view" in per_view_ms:
+        representative_ms = per_view_ms["ego_view"]
+    elif per_view_ms:
+        representative_ms = max(per_view_ms.values())
+    else:
+        representative_ms = None
+    return representative_ms, per_view_ms
+
+
 # ── Client handler ────────────────────────────────────────────────────────────
 
 def handle_client(conn, addr, policy, action_step):
@@ -629,6 +672,14 @@ def handle_client(conn, addr, policy, action_step):
             robot_x   = req["amcl_x"]
             robot_y   = req["amcl_y"]
             robot_yaw = req["amcl_yaw"]
+            camera_mode = req.get("camera_mode", "multiview" if len(images_b64) > 1 else "single")
+            camera_views = req.get("views", list(images_b64.keys()))
+            model_input_timestamp = now
+            camera_to_model_input_ms, per_view_camera_latency_ms = compute_camera_latency_ms(
+                req,
+                model_input_timestamp,
+                video_keys,
+            )
 
             # Task switch detection
             with _task_lock:
@@ -672,6 +723,9 @@ def handle_client(conn, addr, policy, action_step):
                     "dist": goal_distance, "vx": 0.0, "wz": 0.0,
                     "speed": speed_ema, "step": step, "goal_x": goal_x, "goal_y": goal_y,
                     "gh_cos": float(goal_heading[0]), "gh_sin": float(goal_heading[1]),
+                    "camera_mode": camera_mode, "views": camera_views,
+                    "camera_to_model_input_ms": camera_to_model_input_ms,
+                    "per_view_camera_latency_ms": per_view_camera_latency_ms,
                 })
                 print(f"[{step:05d}] WARMUP ({step+1}/{WARMUP_STEPS})")
                 step += 1
@@ -680,6 +734,12 @@ def handle_client(conn, addr, policy, action_step):
             route        = compute_route_segments(robot_x, robot_y, robot_yaw, goal_x, goal_y)
             goal_heading = compute_goal_heading(robot_x, robot_y, robot_yaw, goal_x, goal_y)
 
+            model_input_timestamp = _time.time()
+            camera_to_model_input_ms, per_view_camera_latency_ms = compute_camera_latency_ms(
+                req,
+                model_input_timestamp,
+                video_keys,
+            )
             obs = build_observation(
                 images_np,
                 speed_ema,
@@ -716,6 +776,9 @@ def handle_client(conn, addr, policy, action_step):
                     "dist": goal_distance, "vx": 0.0, "wz": 0.0,
                     "speed": speed_ema, "step": step, "goal_x": goal_x, "goal_y": goal_y,
                     "gh_cos": float(goal_heading[0]), "gh_sin": float(goal_heading[1]),
+                    "camera_mode": camera_mode, "views": camera_views,
+                    "camera_to_model_input_ms": camera_to_model_input_ms,
+                    "per_view_camera_latency_ms": per_view_camera_latency_ms,
                 })
                 step += 1
                 continue
@@ -731,12 +794,21 @@ def handle_client(conn, addr, policy, action_step):
                 "dist": goal_distance, "vx": vx, "wz": wz,
                 "speed": speed_ema, "step": step, "goal_x": goal_x, "goal_y": goal_y,
                 "gh_cos": float(goal_heading[0]), "gh_sin": float(goal_heading[1]),
+                "camera_mode": camera_mode, "views": camera_views,
+                "camera_to_model_input_ms": camera_to_model_input_ms,
+                "per_view_camera_latency_ms": per_view_camera_latency_ms,
             })
 
+            latency_text = (
+                f"latency={camera_to_model_input_ms:.1f}ms"
+                if camera_to_model_input_ms is not None
+                else "latency=NA"
+            )
             print(
                 f"[{step:05d}] dist={goal_distance:.2f}m  "
                 f"v={vx:+.3f}  w={wz:+.3f}  "
-                f"raw=({vx:+.3f},{wz:+.3f})  speed_ema={speed_ema:.3f}"
+                f"raw=({vx:+.3f},{wz:+.3f})  speed_ema={speed_ema:.3f}  "
+                f"{latency_text}"
             )
             step += 1
 
