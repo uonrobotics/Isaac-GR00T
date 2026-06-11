@@ -134,7 +134,13 @@ _DASHBOARD_HTML = """\
   .camera-strip.single { grid-template-columns: minmax(0, min(100%, 1500px)); justify-content: center; }
   .camera-strip.single .side-card { display: none; }
   .camera-card { background: #111; border: 1px solid #333; border-radius: 8px; overflow: hidden; align-self: start; }
+  .camera-frame { background: #050507; overflow: hidden; position: relative; }
   .camera-card img { width: 100%; height: auto; object-fit: contain; display: block; background: #050507; }
+  .camera-strip.driveway .ego-card .camera-frame { aspect-ratio: 5 / 8; }
+  .camera-strip.driveway .ego-card img {
+    width: 160%; max-width: none; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
   .camera-strip.single .camera-card img { max-height: calc(100vh - 255px); }
   .cam-label { color: #9a9a9a; font-size: 0.68rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid #25252c; }
   .telemetry { display: grid; grid-template-columns: 1fr 1fr 1.25fr auto; gap: 10px; align-items: stretch; }
@@ -171,15 +177,15 @@ _DASHBOARD_HTML = """\
   <div class="camera-strip multiview" id="camera_strip">
     <div class="camera-card side-card" id="card_left">
       <div class="cam-label">Left View</div>
-      <img id="cam_left" src="/image/left_view" alt="left view">
+      <div class="camera-frame"><img id="cam_left" src="/image/left_view" alt="left view"></div>
     </div>
     <div class="camera-card ego-card" id="card_ego">
-      <div class="cam-label">Ego View</div>
-      <img id="cam_ego" src="/image/ego_view" alt="ego view">
+      <div class="cam-label" id="ego_label">Ego View</div>
+      <div class="camera-frame"><img id="cam_ego" src="/image/ego_view" alt="ego view"></div>
     </div>
     <div class="camera-card side-card" id="card_right">
       <div class="cam-label">Right View</div>
-      <img id="cam_right" src="/image/right_view" alt="right view">
+      <div class="camera-frame"><img id="cam_right" src="/image/right_view" alt="right view"></div>
     </div>
   </div>
   <div class="telemetry">
@@ -218,15 +224,20 @@ const MAX_TRAIL = 300;
 let trail = [];
 let goal  = null;
 let cameraMode = "multiview";
+let cameraLayout = "default";
 
-function setCameraMode(mode, views) {
+function setCameraMode(mode, layout, views) {
   const hasMultiview = mode === "multiview" || (
     Array.isArray(views) &&
     views.includes("left_view") &&
     views.includes("right_view")
   );
   cameraMode = hasMultiview ? "multiview" : "single";
-  document.getElementById("camera_strip").className = "camera-strip " + cameraMode;
+  cameraLayout = layout || "default";
+  const driveway = cameraLayout === "gemini336l_driveway_view";
+  document.getElementById("camera_strip").className =
+    "camera-strip " + cameraMode + (driveway ? " driveway" : "");
+  document.getElementById("ego_label").textContent = driveway ? "Center View" : "Ego View";
 }
 
 function barUpdate(id, val, maxVal) {
@@ -329,7 +340,7 @@ es.onopen    = () => { document.getElementById("conn_status").textContent = "●
 es.onerror   = () => { document.getElementById("conn_status").textContent = "● disconnected"; document.getElementById("conn_status").className = "status"; };
 es.onmessage = e => {
   const d = JSON.parse(e.data);
-  setCameraMode(d.camera_mode, d.views);
+  setCameraMode(d.camera_mode, d.camera_layout, d.views);
   document.getElementById("px"  ).textContent = d.robot_x   !== undefined ? d.robot_x.toFixed(3)   : "—";
   document.getElementById("py"  ).textContent = d.robot_y   !== undefined ? d.robot_y.toFixed(3)   : "—";
   document.getElementById("yaw" ).textContent = d.robot_yaw !== undefined ? (d.robot_yaw * 180/Math.PI).toFixed(1) + "°" : "—";
@@ -637,6 +648,7 @@ def handle_client(conn, addr, policy, action_step):
     prev_time       = None
     arrival_counter = 0
     arrived         = False
+    active_episode_id = None
 
     with _task_lock:
         prev_task_id = _current_task[0]
@@ -672,7 +684,9 @@ def handle_client(conn, addr, policy, action_step):
             robot_x   = req["amcl_x"]
             robot_y   = req["amcl_y"]
             robot_yaw = req["amcl_yaw"]
+            episode_id = req.get("episode_id")
             camera_mode = req.get("camera_mode", "multiview" if len(images_b64) > 1 else "single")
+            camera_layout = req.get("camera_layout", "default")
             camera_views = req.get("views", list(images_b64.keys()))
             model_input_timestamp = now
             camera_to_model_input_ms, per_view_camera_latency_ms = compute_camera_latency_ms(
@@ -680,6 +694,19 @@ def handle_client(conn, addr, policy, action_step):
                 model_input_timestamp,
                 video_keys,
             )
+
+            if episode_id is not None and episode_id != active_episode_id:
+                active_episode_id = episode_id
+                policy.reset()
+                step = 0
+                speed_ema = 0.0
+                prev_x = None
+                prev_y = None
+                prev_yaw = None
+                prev_time = None
+                arrival_counter = 0
+                arrived = False
+                print(f"[GR00T] new episode_id={active_episode_id}; policy reset and warmup restarted")
 
             # Task switch detection
             with _task_lock:
@@ -723,7 +750,7 @@ def handle_client(conn, addr, policy, action_step):
                     "dist": goal_distance, "vx": 0.0, "wz": 0.0,
                     "speed": speed_ema, "step": step, "goal_x": goal_x, "goal_y": goal_y,
                     "gh_cos": float(goal_heading[0]), "gh_sin": float(goal_heading[1]),
-                    "camera_mode": camera_mode, "views": camera_views,
+                    "camera_mode": camera_mode, "camera_layout": camera_layout, "views": camera_views,
                     "camera_to_model_input_ms": camera_to_model_input_ms,
                     "per_view_camera_latency_ms": per_view_camera_latency_ms,
                 })
@@ -776,7 +803,7 @@ def handle_client(conn, addr, policy, action_step):
                     "dist": goal_distance, "vx": 0.0, "wz": 0.0,
                     "speed": speed_ema, "step": step, "goal_x": goal_x, "goal_y": goal_y,
                     "gh_cos": float(goal_heading[0]), "gh_sin": float(goal_heading[1]),
-                    "camera_mode": camera_mode, "views": camera_views,
+                    "camera_mode": camera_mode, "camera_layout": camera_layout, "views": camera_views,
                     "camera_to_model_input_ms": camera_to_model_input_ms,
                     "per_view_camera_latency_ms": per_view_camera_latency_ms,
                 })
@@ -794,7 +821,7 @@ def handle_client(conn, addr, policy, action_step):
                 "dist": goal_distance, "vx": vx, "wz": wz,
                 "speed": speed_ema, "step": step, "goal_x": goal_x, "goal_y": goal_y,
                 "gh_cos": float(goal_heading[0]), "gh_sin": float(goal_heading[1]),
-                "camera_mode": camera_mode, "views": camera_views,
+                "camera_mode": camera_mode, "camera_layout": camera_layout, "views": camera_views,
                 "camera_to_model_input_ms": camera_to_model_input_ms,
                 "per_view_camera_latency_ms": per_view_camera_latency_ms,
             })

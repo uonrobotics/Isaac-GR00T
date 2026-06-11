@@ -4,12 +4,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/setup_IsaacSim-ros_workspace.sh"
 
-# CAMERA_MODE="${1:-multiview}"
-CAMERA_MODE="${1:-single}"
+# CAMERA_SETUP=(single gemini_336 default)
+# CAMERA_SETUP=(single gemini_336l default)
+# CAMERA_SETUP=(single gemini_345lg default)
+# CAMERA_SETUP=(multiview gemini_336 default)
+CAMERA_SETUP=(multiview gemini_336l gemini336l_driveway_view)
 
-# CAMERA_PRESET="${2:-gemini_336}"
-CAMERA_PRESET="${2:-gemini_336l}"
-# CAMERA_PRESET="${2:-gemini_345lg}"
+CAMERA_MODE="${CAMERA_SETUP[0]}"
+CAMERA_PRESET="${CAMERA_SETUP[1]}"
+CAMERA_LAYOUT="${CAMERA_SETUP[2]}"
+
+echo "[CAMERA] mode=${CAMERA_MODE} preset=${CAMERA_PRESET} layout=${CAMERA_LAYOUT}"
 
 cleanup() {
     if [[ -n "${ISAACSIM_PID:-}" ]]; then
@@ -22,6 +27,7 @@ trap cleanup EXIT INT TERM
 /home/sujin/isaac-sim/python.sh /home/sujin/workspace/physical-ai/Isaac-GR00T/examples/PointNav/inference/isaacsim_server.py \
     --camera-mode "$CAMERA_MODE" \
     --camera-preset "$CAMERA_PRESET" \
+    --camera-layout "$CAMERA_LAYOUT" \
     --enable-ros2-bridge &
 ISAACSIM_PID=$!
 
@@ -33,4 +39,5 @@ python3 /home/sujin/workspace/physical-ai/Isaac-GR00T/examples/PointNav/inferenc
     --amcl-host 127.0.0.1 \
     --amcl-port 8767 \
     --cmd-host 127.0.0.1 \
-    --cmd-port 8766
+    --cmd-port 8766 \
+    "$@"

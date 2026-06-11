@@ -62,7 +62,6 @@ ROBOT_CAMERA_ROS_GRAPH_PATHS = [
     "/World/Nova_Carter_ROS/left_owl",
     "/World/Nova_Carter_ROS/right_owl",
 ]
-
 DEFAULT_Z = 0.0
 CAMERA_SETTLE_FRAMES = 6
 CAMERA_MAX_WAIT_FRAMES = 45
@@ -132,7 +131,16 @@ DEFAULT_DYNAMIC_OBSTACLES = [
 ]
 
 DEFAULT_CAMERA_PRESET = "gemini_336"
+DEFAULT_CAMERA_LAYOUT = "default"
 DEFAULT_MULTIVIEW_YAW_STEP_DEG = 70.0
+GEMINI336L_DRIVEWAY_MOUNT = {
+    "center_camera_x": 0.20,
+    "side_camera_x": 0.19,
+    "camera_z": 0.33,
+    "side_camera_y_offset": 0.12,
+    "side_yaw_deg": 50.0,
+    "center_down_tilt_deg": 10.0,
+}
 
 CAMERA_PRESETS = {
     # Orbbec Gemini 336 RGB. Official RGB FOV H86 x V55 deg.
@@ -195,7 +203,15 @@ VIEW_CAMERA_NAMES = {
 def build_multiview_camera_configs(
     preset_name: str = DEFAULT_CAMERA_PRESET,
     multiview_yaw_step_deg: float | None = None,
+    layout: str = DEFAULT_CAMERA_LAYOUT,
 ) -> dict:
+    if layout == "gemini336l_driveway_view":
+        if preset_name != "gemini_336l":
+            raise ValueError(f"{layout} only supports camera_preset='gemini_336l'")
+        return build_gemini336l_driveway_camera_configs()
+    if layout != DEFAULT_CAMERA_LAYOUT:
+        raise ValueError(f"Unknown camera_layout: {layout}")
+
     preset = CAMERA_PRESETS[preset_name]
     yaw_step = (
         multiview_yaw_step_deg
@@ -216,6 +232,72 @@ def build_multiview_camera_configs(
                 "yaw_offset_deg": float(yaw_sign * yaw_step),
             }
         )
+        configs[view_name] = cfg
+    return configs
+
+
+def build_gemini336l_driveway_camera_configs() -> dict:
+    preset = CAMERA_PRESETS["gemini_336l"]
+    mount = GEMINI336L_DRIVEWAY_MOUNT
+    forward_camera_quat = IsaacSimServer.euler_xyz_deg_to_quat_xyzw(90.0, -90.0, 0.0)
+    center_camera_quat = IsaacSimServer.quat_multiply_xyzw(
+        forward_camera_quat,
+        IsaacSimServer.euler_xyz_deg_to_quat_xyzw(0.0, 0.0, -90.0),
+    )
+    center_camera_quat = IsaacSimServer.quat_multiply_xyzw(
+        IsaacSimServer.euler_xyz_deg_to_quat_xyzw(
+            0.0,
+            mount["center_down_tilt_deg"],
+            0.0,
+        ),
+        center_camera_quat,
+    )
+
+    mounts = {
+        "left_view": {
+            "camera_name": "left",
+            "offset_xyz": [
+                mount["side_camera_x"],
+                mount["side_camera_y_offset"],
+                mount["camera_z"],
+            ],
+            "yaw_offset_deg": mount["side_yaw_deg"],
+        },
+        "ego_view": {
+            "camera_name": "center",
+            "offset_xyz": [
+                mount["center_camera_x"],
+                0.0,
+                mount["camera_z"],
+            ],
+            "yaw_offset_deg": 0.0,
+            "rot_quat_xyzw": center_camera_quat,
+        },
+        "right_view": {
+            "camera_name": "right",
+            "offset_xyz": [
+                mount["side_camera_x"],
+                -mount["side_camera_y_offset"],
+                mount["camera_z"],
+            ],
+            "yaw_offset_deg": -mount["side_yaw_deg"],
+        },
+    }
+
+    configs = {}
+    for view_name, camera_mount in mounts.items():
+        cfg = copy.deepcopy(preset)
+        cfg.update(
+            {
+                "name": f"cam_{camera_mount['camera_name']}",
+                "camera_prim_path": (
+                    f"/World/replay_camera/{camera_mount['camera_name']}_camera"
+                ),
+                "rot_xyz_deg": [90.0, -90.0, 0.0],
+                **camera_mount,
+            }
+        )
+        cfg.pop("camera_name")
         configs[view_name] = cfg
     return configs
 
@@ -490,6 +572,7 @@ class IsaacSimServer:
         self,
         camera_mode: str = "single",
         camera_preset: str = DEFAULT_CAMERA_PRESET,
+        camera_layout: str = DEFAULT_CAMERA_LAYOUT,
         camera_yaw_deg: float = 0.0,
         multiview_yaw_step_deg: float | None = None,
         enable_ros2_bridge: bool = False,
@@ -507,7 +590,10 @@ class IsaacSimServer:
         self.enable_ros2_bridge = enable_ros2_bridge
         self.camera_mode = camera_mode
         self.camera_preset = camera_preset
+        self.camera_layout = camera_layout
         if camera_mode == "single":
+            if camera_layout != DEFAULT_CAMERA_LAYOUT:
+                raise ValueError("Non-default camera layouts require camera_mode='multiview'")
             self.camera_configs = {
                 "ego_view": build_camera_config(camera_preset, camera_yaw_deg),
             }
@@ -515,6 +601,7 @@ class IsaacSimServer:
             self.camera_configs = build_multiview_camera_configs(
                 camera_preset,
                 multiview_yaw_step_deg,
+                camera_layout,
             )
         else:
             raise ValueError(f"Unknown camera_mode: {camera_mode}")
@@ -985,6 +1072,7 @@ class IsaacSimServer:
 
         print(
             f"[SIM SERVER] camera_mode={self.camera_mode} camera_preset={self.camera_preset} "
+            f"camera_layout={self.camera_layout} "
             f"resolution={self.camera_cfg['resolution']} "
             f"fov=H{self.camera_cfg['fov_deg']} V{self.camera_cfg['vertical_fov_deg']} "
             f"offset={self.camera_cfg['offset_xyz']} "
@@ -1055,13 +1143,16 @@ class IsaacSimServer:
     def compose_camera_world_pose(self, robot_pose_world: Tuple[float, float, float], cfg: dict):
         base_x, base_y, base_yaw = robot_pose_world
         dx, dy, dz = cfg["offset_xyz"]
-        r_deg, p_deg, y_deg = cfg["rot_xyz_deg"]
         camera_yaw = base_yaw + math.radians(float(cfg.get("yaw_offset_deg", 0.0)))
         cam_x = base_x + math.cos(base_yaw) * dx - math.sin(base_yaw) * dy
         cam_y = base_y + math.sin(base_yaw) * dx + math.cos(base_yaw) * dy
         cam_z = dz
         q_base = self.yaw_to_quat_xyzw(camera_yaw)
-        q_cam_local = self.euler_xyz_deg_to_quat_xyzw(r_deg, p_deg, y_deg)
+        if "rot_quat_xyzw" in cfg:
+            q_cam_local = cfg["rot_quat_xyzw"]
+        else:
+            r_deg, p_deg, y_deg = cfg["rot_xyz_deg"]
+            q_cam_local = self.euler_xyz_deg_to_quat_xyzw(r_deg, p_deg, y_deg)
         q_cam_world = self.quat_multiply_xyzw(q_base, q_cam_local)
         return [cam_x, cam_y, cam_z], q_cam_world
 
@@ -1124,6 +1215,8 @@ class IsaacSimServer:
             "image_b64": images_b64["ego_view"],
             "image_capture_timestamp": image_capture_timestamps["ego_view"],
             "camera_mode": self.camera_mode,
+            "camera_preset": self.camera_preset,
+            "camera_layout": self.camera_layout,
             "views": list(self.camera_configs.keys()),
             "pose": pose,
             "timestamp": obs_timestamp,
@@ -1144,8 +1237,7 @@ class IsaacSimServer:
         x, y, yaw = get_world_xy_yaw(self.stage, ROBOT_BODY_PRIM_PATH)
         return {"x": x, "y": y, "yaw": yaw}
 
-    def reset_robot_random_pose(self):
-        x, y, yaw = sample_conditioned_spawn(self.spawn_region, self.occ_map)
+    def reset_robot_pose(self, x: float, y: float, yaw: float, label: str = "requested"):
         quat_wxyz = quat_wxyz_from_yaw(yaw)
         try:
             self.robot.set_world_pose(
@@ -1163,10 +1255,14 @@ class IsaacSimServer:
             simulation_app.update()
         pose = self.get_pose()
         print(
-            f"[SIM SERVER] reset pose requested=({x:.2f},{y:.2f},{yaw:.2f}) "
+            f"[SIM SERVER] reset pose {label}=({x:.2f},{y:.2f},{yaw:.2f}) "
             f"actual=({pose['x']:.2f},{pose['y']:.2f},{pose['yaw']:.2f})"
         )
         return pose
+
+    def reset_robot_random_pose(self):
+        x, y, yaw = sample_conditioned_spawn(self.spawn_region, self.occ_map)
+        return self.reset_robot_pose(x, y, yaw, label="random")
 
 
 def main():
@@ -1184,6 +1280,12 @@ def main():
         default=DEFAULT_CAMERA_PRESET,
         choices=sorted(CAMERA_PRESETS.keys()),
         help="Camera preset used for Isaac Sim RGB observations.",
+    )
+    parser.add_argument(
+        "--camera-layout",
+        default=DEFAULT_CAMERA_LAYOUT,
+        choices=[DEFAULT_CAMERA_LAYOUT, "gemini336l_driveway_view"],
+        help="Physical camera mount layout. Driveway view requires multiview gemini_336l.",
     )
     parser.add_argument(
         "--camera-yaw-deg",
@@ -1208,6 +1310,7 @@ def main():
     sim = IsaacSimServer(
         camera_mode=args.camera_mode,
         camera_preset=args.camera_preset,
+        camera_layout=args.camera_layout,
         camera_yaw_deg=args.camera_yaw_deg,
         multiview_yaw_step_deg=args.multiview_yaw_step_deg,
         enable_ros2_bridge=args.enable_ros2_bridge,
@@ -1242,6 +1345,17 @@ def main():
                     ok = server.send_message({"ok": True, "pose": pose})
                     if not ok:
                         print("[SIM SERVER] send failed for reset response")
+
+                elif cmd == "reset_to_pose":
+                    pose = sim.reset_robot_pose(
+                        float(msg["x"]),
+                        float(msg["y"]),
+                        float(msg["yaw"]),
+                        label=str(msg.get("label", "fixed")),
+                    )
+                    ok = server.send_message({"ok": True, "pose": pose})
+                    if not ok:
+                        print("[SIM SERVER] send failed for fixed reset response")
 
                 elif cmd == "get_obs":
                     obs = sim.get_obs()
