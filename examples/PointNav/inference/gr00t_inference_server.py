@@ -50,7 +50,7 @@ from gr00t.data.embodiment_tags import EmbodimentTag
 LISTEN_PORT      = 5000
 WEB_PORT         = 8080
 INFERENCE_HZ     = 10          # matches C++ INFER_PERIOD_MS = 100
-ACTION_STEP_IDX  = 1
+ACTION_STEP_IDX  = 1 # TODO: 0??? 
 N_ROUTE_SEGMENTS = 10          # route = 10 segments × 4 values = 40 floats
 
 ARRIVAL_DIST_M   = 0.20        # stop when closer than this
@@ -133,6 +133,8 @@ _DASHBOARD_HTML = """\
   .camera-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; width: 100%; }
   .camera-strip.single { grid-template-columns: minmax(0, min(100%, 1500px)); justify-content: center; }
   .camera-strip.single .side-card { display: none; }
+  .camera-strip.high-dual { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .camera-strip.high-dual .ego-card { display: none; }
   .camera-card { background: #111; border: 1px solid #333; border-radius: 8px; overflow: hidden; align-self: start; }
   .camera-frame { background: #050507; overflow: hidden; position: relative; }
   .camera-card img { width: 100%; height: auto; object-fit: contain; display: block; background: #050507; }
@@ -225,6 +227,7 @@ let trail = [];
 let goal  = null;
 let cameraMode = "multiview";
 let cameraLayout = "default";
+let cameraViews = ["left_view", "ego_view", "right_view"];
 
 function setCameraMode(mode, layout, views) {
   const hasMultiview = mode === "multiview" || (
@@ -234,9 +237,11 @@ function setCameraMode(mode, layout, views) {
   );
   cameraMode = hasMultiview ? "multiview" : "single";
   cameraLayout = layout || "default";
+  cameraViews = Array.isArray(views) && views.length ? views : ["ego_view"];
   const driveway = cameraLayout === "gemini336l_driveway_view";
+  const highDual = cameraLayout === "gemini336l_high_dual_view";
   document.getElementById("camera_strip").className =
-    "camera-strip " + cameraMode + (driveway ? " driveway" : "");
+    "camera-strip " + cameraMode + (driveway ? " driveway" : "") + (highDual ? " high-dual" : "");
   document.getElementById("ego_label").textContent = driveway ? "Center View" : "Ego View";
 }
 
@@ -371,7 +376,9 @@ es.onmessage = e => {
 // image polling
 function refreshImage() {
   const t = Date.now();
-  document.getElementById("cam_ego").src = "/image/ego_view?" + t;
+  if (cameraViews.includes("ego_view")) {
+    document.getElementById("cam_ego").src = "/image/ego_view?" + t;
+  }
   if (cameraMode === "multiview") {
     document.getElementById("cam_left").src = "/image/left_view?" + t;
     document.getElementById("cam_right").src = "/image/right_view?" + t;
@@ -900,5 +907,4 @@ if __name__ == "__main__":
 '''
 uv run python gr00t_inference_server.py \
     --model-path /home/lds/model/gr00t-finetune+real_v2_lerobot--20260507/checkpoint-60000 \
-    --port 5000 --device cuda:0 --action-step 1 --web-port 9090
 '''

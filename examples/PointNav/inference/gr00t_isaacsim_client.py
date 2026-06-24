@@ -440,15 +440,15 @@ def main():
             images_b64 = obs_resp.get("images_b64")
             if isinstance(images_b64, dict):
                 images_b64 = dict(images_b64)
-                images_b64.setdefault("ego_view", obs_resp["image_b64"])
             else:
                 images_b64 = {"ego_view": obs_resp["image_b64"]}
+            legacy_image_b64 = images_b64.get("ego_view") or obs_resp["image_b64"]
 
             action = infer.request(
                 {
                     # Keep "image" for single-view/backward compatibility.
                     # Multiview checkpoints consume the "images" mapping.
-                    "image": images_b64["ego_view"],
+                    "image": legacy_image_b64,
                     "images": images_b64,
                     "image_capture_timestamp": obs_resp.get("image_capture_timestamp"),
                     "image_capture_timestamps": obs_resp.get("image_capture_timestamps", {}),
