@@ -85,6 +85,9 @@ class FinetuneConfig:
     If None, no extra augmentations are applied.
     """
 
+    top_half_masking: bool = False
+    """If True, set the upper half of every input image to zero before VLM processing."""
+
     # --- Training Configuration ---
     global_batch_size: int = 64
     """Total effective batch size across all GPUs and accumulation steps."""

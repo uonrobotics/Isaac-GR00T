@@ -66,6 +66,7 @@ if __name__ == "__main__":
         config.model.extra_augmentation_config = json.loads(ft_config.extra_augmentation_config)
     else:
         config.model.extra_augmentation_config = None
+    config.model.top_half_masking = ft_config.top_half_masking
 
     config.model.load_bf16 = False
     config.model.reproject_vision = False

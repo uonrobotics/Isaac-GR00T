@@ -129,6 +129,7 @@ class Gr00tN1d6Processor(BaseProcessor):
         max_action_horizon: int = 40,
         use_albumentations: bool = False,
         extra_augmentation_config: dict | None = None,
+        top_half_masking: bool = False,
         use_relative_action: bool = False,
         embodiment_id_mapping: dict[str, int] | None = None,
         transformers_loading_kwargs: dict = {"trust_remote_code": True},
@@ -151,6 +152,7 @@ class Gr00tN1d6Processor(BaseProcessor):
         self.apply_sincos_state_encoding = apply_sincos_state_encoding
         self.use_relative_action = use_relative_action
         self.extra_augmentation_config = extra_augmentation_config
+        self.top_half_masking = top_half_masking
 
         # Save VLM settings
         self.formalize_language = formalize_language
@@ -417,6 +419,31 @@ class Gr00tN1d6Processor(BaseProcessor):
                     image_transform, view_images, view_masks, replay
                 )
                 temporal_stacked_images[view] = torch.stack(transformed_images)  # (T, C, H, W)
+
+                if self.top_half_masking:
+                    x = temporal_stacked_images[view]
+                    _, _, height, _ = x.shape
+                    x[:, :, : height // 2, :] = 0
+                    temporal_stacked_images[view] = x
+
+                    # Save one masked image from rank 0 for verification.
+                    if not hasattr(self, "_debug_mask_saved"):
+                        rank = int(os.environ.get("RANK", "0"))
+                        if rank == 0:
+                            worker_info = torch.utils.data.get_worker_info()
+                            if worker_info is not None and worker_info.id == 0:
+                                import torchvision
+
+                                torchvision.utils.save_image(
+                                    x[0].float() / 255.0,
+                                    f"./debug_masked_{view}.png",
+                                )
+                                print(
+                                    f"[mask debug] view={view}, "
+                                    f"top={x[:, :, : height // 2, :].float().mean().item():.2f}, "
+                                    f"bottom={x[:, :, height // 2 :, :].float().mean().item():.2f}"
+                                )
+                        self._debug_mask_saved = True
         else:
             if masks is not None:
                 raise ValueError(
@@ -428,6 +455,12 @@ class Gr00tN1d6Processor(BaseProcessor):
                 temporal_stacked_images[view] = torch.stack(
                     [image_transform(img) for img in images[view]]
                 )  # (T, C, H, W)
+
+                if self.top_half_masking:
+                    x = temporal_stacked_images[view]
+                    _, _, height, _ = x.shape
+                    x[:, :, : height // 2, :] = 0
+                    temporal_stacked_images[view] = x
 
         for k, v in temporal_stacked_images.items():
             assert isinstance(k, str), f"{k} is not a string"
@@ -464,6 +497,7 @@ class Gr00tN1d6Processor(BaseProcessor):
                 "color_jitter_params": self.color_jitter_params,
                 "shortest_image_edge": self.shortest_image_edge,
                 "crop_fraction": self.crop_fraction,
+                "top_half_masking": self.top_half_masking,
                 # VLM settings
                 "model_name": self.model_name,
                 "model_type": self.model_type,
@@ -529,6 +563,7 @@ class Gr00tN1d6Processor(BaseProcessor):
                 "color_jitter_params",
                 "use_relative_action",
                 "extra_augmentation_config",
+                "top_half_masking",
             ]
             for key in override_keys:
                 if key in kwargs:

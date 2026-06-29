@@ -6,7 +6,7 @@ from gr00t.data.types import ModalityConfig
 point_nav_multiview_config = {
     "video": ModalityConfig(
         delta_indices=[0],
-        modality_keys=["center_view", "left_view", "right_view"],
+        modality_keys=["left_view", "right_view"],
     ),
     "state": ModalityConfig(
         delta_indices=[0],

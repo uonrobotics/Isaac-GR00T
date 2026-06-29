@@ -47,6 +47,7 @@ class Gr00tN1d6Config(PretrainedConfig):
     use_albumentations_transforms: bool = True
     # Extra augmentation config (mask-based and others).
     extra_augmentation_config: dict | None = None
+    top_half_masking: bool = False
     formalize_language: bool = True
     apply_sincos_state_encoding: bool = (
         False  # Global flag to enable per-embodiment sin/cos encoding
