@@ -141,6 +141,26 @@ GEMINI336L_DRIVEWAY_MOUNT = {
     "side_yaw_deg": 50.0,
     "center_down_tilt_deg": 10.0,
 }
+GEMINI336L_HIGH_DUAL_LANDSCAPE_MOUNT = {
+    "left_camera_x": 0.11,
+    "left_camera_y": 0.05,
+    "right_camera_x": 0.11,
+    "right_camera_y": -0.05,
+    "camera_z": 1.40,
+    "left_yaw_deg": 43.0,
+    "right_yaw_deg": -43.0,
+    "down_tilt_deg": 25.0,
+}
+GEMINI336L_HIGH_DUAL_PORTRAIT_MOUNT = {
+    "left_camera_x": 0.11,
+    "left_camera_y": 0.05,
+    "right_camera_x": 0.11,
+    "right_camera_y": -0.05,
+    "camera_z": 1.40,
+    "left_yaw_deg": 30.0,
+    "right_yaw_deg": -30.0,
+    "down_tilt_deg": 35.0,
+}
 
 CAMERA_PRESETS = {
     # Orbbec Gemini 336 RGB. Official RGB FOV H86 x V55 deg.
@@ -162,6 +182,16 @@ CAMERA_PRESETS = {
         "clipping_range": (0.01, 1000.0),
         "horizontal_aperture": 20.955,
     },
+    # Orbbec Gemini 336L RGB, physically portrait-mounted. Projection axes are swapped: H68 x V94 deg.
+    "gemini_336l_portrait": {
+        "resolution": (400, 640),
+        "fov_deg": 68.0,
+        "vertical_fov_deg": 94.0,
+        "offset_xyz": [0.20, 0.0, 0.33],
+        "clipping_range": (0.01, 1000.0),
+        "horizontal_aperture": None,
+        "horizontal_aperture_from_landscape_preset": "gemini_336l",
+    },
     # Orbbec Gemini 345Lg color camera. Official Color FOV H137 x V71 deg.
     "gemini_345lg": {
         "resolution": (640, 360),
@@ -174,8 +204,28 @@ CAMERA_PRESETS = {
 }
 
 
+def vertical_aperture_for_camera_preset(cfg: dict) -> float:
+    if cfg.get("vertical_fov_deg") is None:
+        return cfg["horizontal_aperture"] * (cfg["resolution"][1] / cfg["resolution"][0])
+
+    focal = cfg["horizontal_aperture"] / (
+        2.0 * math.tan(math.radians(float(cfg["fov_deg"])) * 0.5)
+    )
+    return 2.0 * focal * math.tan(math.radians(float(cfg["vertical_fov_deg"])) * 0.5)
+
+
+def camera_preset_config(preset_name: str) -> dict:
+    preset = copy.deepcopy(CAMERA_PRESETS[preset_name])
+    source_preset = preset.get("horizontal_aperture_from_landscape_preset")
+    if source_preset:
+        preset["horizontal_aperture"] = vertical_aperture_for_camera_preset(
+            CAMERA_PRESETS[source_preset]
+        )
+    return preset
+
+
 def build_camera_config(preset_name: str = DEFAULT_CAMERA_PRESET, yaw_deg: float = 0.0) -> dict:
-    preset = CAMERA_PRESETS[preset_name].copy()
+    preset = camera_preset_config(preset_name)
     preset.update(
         {
             "name": f"cam_{preset_name}",
@@ -209,10 +259,17 @@ def build_multiview_camera_configs(
         if preset_name != "gemini_336l":
             raise ValueError(f"{layout} only supports camera_preset='gemini_336l'")
         return build_gemini336l_driveway_camera_configs()
+    if layout == "gemini336l_high_dual_view":
+        if preset_name not in {"gemini_336l", "gemini_336l_portrait"}:
+            raise ValueError(
+                f"{layout} only supports camera_preset='gemini_336l' or "
+                "camera_preset='gemini_336l_portrait'"
+            )
+        return build_gemini336l_high_dual_camera_configs(preset_name)
     if layout != DEFAULT_CAMERA_LAYOUT:
         raise ValueError(f"Unknown camera_layout: {layout}")
 
-    preset = CAMERA_PRESETS[preset_name]
+    preset = camera_preset_config(preset_name)
     yaw_step = (
         multiview_yaw_step_deg
         if multiview_yaw_step_deg is not None
@@ -237,7 +294,7 @@ def build_multiview_camera_configs(
 
 
 def build_gemini336l_driveway_camera_configs() -> dict:
-    preset = CAMERA_PRESETS["gemini_336l"]
+    preset = camera_preset_config("gemini_336l")
     mount = GEMINI336L_DRIVEWAY_MOUNT
     forward_camera_quat = IsaacSimServer.euler_xyz_deg_to_quat_xyzw(90.0, -90.0, 0.0)
     center_camera_quat = IsaacSimServer.quat_multiply_xyzw(
@@ -294,6 +351,62 @@ def build_gemini336l_driveway_camera_configs() -> dict:
                     f"/World/replay_camera/{camera_mount['camera_name']}_camera"
                 ),
                 "rot_xyz_deg": [90.0, -90.0, 0.0],
+                **camera_mount,
+            }
+        )
+        cfg.pop("camera_name")
+        configs[view_name] = cfg
+    return configs
+
+
+def tilted_camera_quat_xyzw(down_tilt_deg: float):
+    forward_camera_quat = IsaacSimServer.euler_xyz_deg_to_quat_xyzw(90.0, -90.0, 0.0)
+    return IsaacSimServer.quat_multiply_xyzw(
+        IsaacSimServer.euler_xyz_deg_to_quat_xyzw(0.0, down_tilt_deg, 0.0),
+        forward_camera_quat,
+    )
+
+
+def build_gemini336l_high_dual_camera_configs(preset_name: str) -> dict:
+    preset = camera_preset_config(preset_name)
+    mount = (
+        GEMINI336L_HIGH_DUAL_PORTRAIT_MOUNT
+        if preset_name == "gemini_336l_portrait"
+        else GEMINI336L_HIGH_DUAL_LANDSCAPE_MOUNT
+    )
+    camera_quat = tilted_camera_quat_xyzw(mount["down_tilt_deg"])
+    mounts = {
+        "left_view": {
+            "camera_name": "left",
+            "offset_xyz": [
+                mount["left_camera_x"],
+                mount["left_camera_y"],
+                mount["camera_z"],
+            ],
+            "yaw_offset_deg": mount["left_yaw_deg"],
+        },
+        "right_view": {
+            "camera_name": "right",
+            "offset_xyz": [
+                mount["right_camera_x"],
+                mount["right_camera_y"],
+                mount["camera_z"],
+            ],
+            "yaw_offset_deg": mount["right_yaw_deg"],
+        },
+    }
+
+    configs = {}
+    for view_name, camera_mount in mounts.items():
+        cfg = copy.deepcopy(preset)
+        cfg.update(
+            {
+                "name": f"cam_{camera_mount['camera_name']}",
+                "camera_prim_path": (
+                    f"/World/replay_camera/{camera_mount['camera_name']}_camera"
+                ),
+                "rot_xyz_deg": [90.0, -90.0, 0.0],
+                "rot_quat_xyzw": camera_quat,
                 **camera_mount,
             }
         )
@@ -605,7 +718,10 @@ class IsaacSimServer:
             )
         else:
             raise ValueError(f"Unknown camera_mode: {camera_mode}")
-        self.camera_cfg = self.camera_configs["ego_view"]
+        self.primary_camera_view = (
+            "ego_view" if "ego_view" in self.camera_configs else next(iter(self.camera_configs))
+        )
+        self.camera_cfg = self.camera_configs[self.primary_camera_view]
         self.spawn_region = None
         self.occ_map = OccupancyDistanceMap(
             MAP_PNG_PATH,
@@ -1066,7 +1182,7 @@ class IsaacSimServer:
             cam_geom.GetClippingRangeAttr().Set(Gf.Vec2f(*cfg["clipping_range"]))
             self.cameras[view_name] = camera
 
-        self.camera = self.cameras["ego_view"]
+        self.camera = self.cameras.get("ego_view") or next(iter(self.cameras.values()))
         for _ in range(10):
             simulation_app.update()
 
@@ -1211,9 +1327,10 @@ class IsaacSimServer:
             image_b64, capture_timestamp = self.encode_camera_jpeg(camera)
             images_b64[view_name] = image_b64
             image_capture_timestamps[view_name] = capture_timestamp
+        primary_view = "ego_view" if "ego_view" in images_b64 else next(iter(images_b64))
         obs = {
-            "image_b64": images_b64["ego_view"],
-            "image_capture_timestamp": image_capture_timestamps["ego_view"],
+            "image_b64": images_b64[primary_view],
+            "image_capture_timestamp": image_capture_timestamps[primary_view],
             "camera_mode": self.camera_mode,
             "camera_preset": self.camera_preset,
             "camera_layout": self.camera_layout,
@@ -1284,8 +1401,11 @@ def main():
     parser.add_argument(
         "--camera-layout",
         default=DEFAULT_CAMERA_LAYOUT,
-        choices=[DEFAULT_CAMERA_LAYOUT, "gemini336l_driveway_view"],
-        help="Physical camera mount layout. Driveway view requires multiview gemini_336l.",
+        choices=[DEFAULT_CAMERA_LAYOUT, "gemini336l_driveway_view", "gemini336l_high_dual_view"],
+        help=(
+            "Physical camera mount layout. Driveway view requires multiview gemini_336l; "
+            "high-dual view requires multiview gemini_336l or gemini_336l_portrait."
+        ),
     )
     parser.add_argument(
         "--camera-yaw-deg",
