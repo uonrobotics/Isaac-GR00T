@@ -2,7 +2,11 @@
 set -e
 
 # DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini_336/gr00t-finetune+sim_v2_lerobot_multiview_gemini_336--20260522/checkpoint-60000"
-DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_driveway/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_driveway--20260605/checkpoint-60000/"
+# DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_driveway/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_driveway--20260605/checkpoint-60000/"
+# DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_high_dual_landscape/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_high_dual_landscape--20260618/checkpoint-60000/"
+# DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_high_dual_portrait/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_high_dual_portrait--20260618/checkpoint-60000/"
+
+DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_high_dual_portrait_concat/gr00t-finetune+sim_v2_lerobot_multiview_gemini336l_high_dual_portrait_concat--20260626/checkpoint-60000/"
 
 # DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_single_gemini336l/gr00t-finetune+sim_v2_lerobot_single_gemini336l--20260522/checkpoint-60000"
 # DEFAULT_MODEL_PATH="/nas/sujinkim/model/goto/gr00t/gr00t-finetune+sim_v2_lerobot_single_gemini345lg/gr00t-finetune+sim_v2_lerobot_single_gemini345lg--20260522/checkpoint-60000/"

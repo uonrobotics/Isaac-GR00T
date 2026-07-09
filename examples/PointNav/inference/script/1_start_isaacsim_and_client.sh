@@ -8,7 +8,10 @@ source "${SCRIPT_DIR}/setup_IsaacSim-ros_workspace.sh"
 # CAMERA_SETUP=(single gemini_336l default)
 # CAMERA_SETUP=(single gemini_345lg default)
 # CAMERA_SETUP=(multiview gemini_336 default)
-CAMERA_SETUP=(multiview gemini_336l gemini336l_driveway_view)
+# CAMERA_SETUP=(multiview gemini_336l gemini336l_driveway_view)
+# CAMERA_SETUP=(multiview gemini_336l gemini336l_high_dual_view) # high-dual-landscape
+# CAMERA_SETUP=(multiview gemini_336l_portrait gemini336l_high_dual_view) # high-dual-portrait
+CAMERA_SETUP=(multiview gemini_336l_portrait gemini336l_high_dual_view_concat) # high-dual-portrait-concat
 
 CAMERA_MODE="${CAMERA_SETUP[0]}"
 CAMERA_PRESET="${CAMERA_SETUP[1]}"
@@ -40,4 +43,5 @@ python3 /home/sujin/workspace/physical-ai/Isaac-GR00T/examples/PointNav/inferenc
     --amcl-port 8767 \
     --cmd-host 127.0.0.1 \
     --cmd-port 8766 \
+    --no-sim-pose-fallback \
     "$@"

@@ -29,7 +29,9 @@ from gr00t.policy.gr00t_policy import Gr00tPolicy, _rec_to_dtype
 
 
 # MODEL_PATH = "/nas/sujinkim/model/following_lane/gr00t/gr00t-finetune+real_v1_lerobot/gr00t-finetune+real_v1_lerobot--20260615/checkpoint-60000/"
-MODEL_PATH = "/nas/sujinkim/model/following_lane/gr00t/gr00t-finetune+real_v1_lerobot_tophalf_masked/gr00t-finetune+real_v1_lerobot_tophalf_masked--20260623/checkpoint-60000/"
+# MODEL_PATH = "/nas/sujinkim/model/following_lane/gr00t/gr00t-finetune+real_v1_lerobot_tophalf_masked/gr00t-finetune+real_v1_lerobot_tophalf_masked--20260623/checkpoint-60000/"
+# MODEL_PATH = "/nas/sujinkim/model/following_lane/gr00t/gr00t-finetune+real_v1_lerobot_rule-ifthen/gr00t-finetune+real_v1_lerobot_rule-ifthen--20260618/checkpoint-60000/"
+MODEL_PATH = "/nas/sujinkim/model/following_lane/gr00t/gr00t-finetune+real_v1_lerobot_visual-bluelane/gr00t-finetune+real_v1_lerobot_visual-bluelane--20260618/checkpoint-60000/"
 
 # ### road 1 #### 
 # GOAL_X = 5.17
@@ -70,8 +72,8 @@ MODEL_PATH = "/nas/sujinkim/model/following_lane/gr00t/gr00t-finetune+real_v1_le
 GOAL_X = 7.47
 GOAL_Y = 4.97
 GOAL_YAW = -0.04
-# INPUT_IMAGE_PATH = "/nas/sujinkim/data/following_lane/unseen_road_test/rgb/road1/0001/rgb_0000.png"
-INPUT_IMAGE_PATH = "/nas/sujinkim/data/following_lane/unseen_road_test/rgb/road1/0001/rgb_0038.png"
+INPUT_IMAGE_PATH = "/nas/sujinkim/data/following_lane/unseen_road_test/rgb/road1/0001/rgb_0000.png"
+# INPUT_IMAGE_PATH = "/nas/sujinkim/data/following_lane/unseen_road_test/rgb/road1/0001/rgb_0038.png"
 
 ROBOT_X = 5.2
 ROBOT_Y = 5.04
@@ -89,7 +91,7 @@ LAN_PROMPT = (
 )
 
 N_ROUTE_SEGMENTS = 10
-MASK_TOP_HALF_IMAGE = True
+MASK_TOP_HALF_IMAGE = False
 MASK_FILL_VALUE = 0
 
 

@@ -659,8 +659,8 @@ if __name__ == "__main__":
 '''
 # Step 1: Convert
 uv run python sujinkim/to_lerobot_v2.py \
-    --raw-root /nas/sujinkim/data/goto/real_v2_edited \
-    --output-root /nas/sujinkim/data/goto/real_v2_lerobot_edited
+    --raw-root /nas/sujinkim/data/following_lane/real_v1/ \
+    --output-root /nas/sujinkim/data/following_lane/real_v1_lerobot
 
 # Convert each RGB folder separately:
 #   /nas/sujinkim/data/goto/sim_v2_lerobot_single_gemini336l
@@ -668,12 +668,12 @@ uv run python sujinkim/to_lerobot_v2.py \
 #   /nas/sujinkim/data/goto/sim_v2_lerobot_multiview_gemini_336
 uv run python sujinkim/to_lerobot_v2.py \
     --raw-root /nas/sujinkim/data/goto/sim_v2 \
-    --output-root /nas/sujinkim/data/goto/sim_v2_lerobot \
-    --split-rgb-folders
+    --output-root /nas/sujinkim/data/goto/sim_v2_lerobot_multiview_gemini336l_high_dual_portrait_concat \
+    --rgb-folder rgb_multiview_gemini336l_high_dual_portrait_concat
 
 # Step 2: Generate stats.json
 uv run python gr00t/data/stats.py \
-    --dataset-path /nas/sujinkim/data/goto/sim_v2_lerobot_single_gemini345lg \
+    --dataset-path /nas/sujinkim/data/goto/sim_v2_lerobot_multiview_gemini336l_high_dual_portrait_concat \
     --embodiment-tag NEW_EMBODIMENT
     
 '''

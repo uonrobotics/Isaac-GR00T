@@ -132,6 +132,8 @@ DEFAULT_DYNAMIC_OBSTACLES = [
 
 DEFAULT_CAMERA_PRESET = "gemini_336"
 DEFAULT_CAMERA_LAYOUT = "default"
+GEMINI336L_HIGH_DUAL_VIEW_LAYOUT = "gemini336l_high_dual_view"
+GEMINI336L_HIGH_DUAL_VIEW_CONCAT_LAYOUT = "gemini336l_high_dual_view_concat"
 DEFAULT_MULTIVIEW_YAW_STEP_DEG = 70.0
 GEMINI336L_DRIVEWAY_MOUNT = {
     "center_camera_x": 0.20,
@@ -259,7 +261,7 @@ def build_multiview_camera_configs(
         if preset_name != "gemini_336l":
             raise ValueError(f"{layout} only supports camera_preset='gemini_336l'")
         return build_gemini336l_driveway_camera_configs()
-    if layout == "gemini336l_high_dual_view":
+    if layout in {GEMINI336L_HIGH_DUAL_VIEW_LAYOUT, GEMINI336L_HIGH_DUAL_VIEW_CONCAT_LAYOUT}:
         if preset_name not in {"gemini_336l", "gemini_336l_portrait"}:
             raise ValueError(
                 f"{layout} only supports camera_preset='gemini_336l' or "
@@ -1282,7 +1284,7 @@ class IsaacSimServer:
         return pose
 
     @staticmethod
-    def encode_camera_jpeg(camera, max_wait_frames: int = CAMERA_MAX_WAIT_FRAMES) -> tuple[str, float]:
+    def capture_camera_rgb(camera, max_wait_frames: int = CAMERA_MAX_WAIT_FRAMES) -> tuple[np.ndarray, float]:
         rgba = None
         capture_timestamp = time.time()
         for _ in range(max_wait_frames):
@@ -1308,10 +1310,19 @@ class IsaacSimServer:
         rgb = np.asarray(rgba)[..., :3]
         if rgb.dtype != np.uint8:
             rgb = np.clip(rgb, 0, 255).astype(np.uint8)
+        return rgb, capture_timestamp
+
+    @staticmethod
+    def encode_rgb_jpeg(rgb: np.ndarray) -> str:
         img = Image.fromarray(rgb)
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=90)
-        return base64.b64encode(buf.getvalue()).decode("utf-8"), capture_timestamp
+        return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    @classmethod
+    def encode_camera_jpeg(cls, camera, max_wait_frames: int = CAMERA_MAX_WAIT_FRAMES) -> tuple[str, float]:
+        rgb, capture_timestamp = cls.capture_camera_rgb(camera, max_wait_frames)
+        return cls.encode_rgb_jpeg(rgb), capture_timestamp
 
     def get_obs(self) -> dict:
         for _ in range(CAMERA_SETTLE_FRAMES):
@@ -1323,23 +1334,45 @@ class IsaacSimServer:
         obs_timestamp = time.time()
         images_b64 = {}
         image_capture_timestamps = {}
+        rgb_by_view = {}
         for view_name, camera in self.cameras.items():
-            image_b64, capture_timestamp = self.encode_camera_jpeg(camera)
+            rgb, capture_timestamp = self.capture_camera_rgb(camera)
+            rgb_by_view[view_name] = rgb
+            image_b64 = self.encode_rgb_jpeg(rgb)
             images_b64[view_name] = image_b64
             image_capture_timestamps[view_name] = capture_timestamp
+        response_camera_mode = self.camera_mode
+        if self.camera_layout == GEMINI336L_HIGH_DUAL_VIEW_CONCAT_LAYOUT:
+            left_rgb = rgb_by_view["left_view"]
+            right_rgb = rgb_by_view["right_view"]
+            if left_rgb.shape[0] != right_rgb.shape[0]:
+                right_img = Image.fromarray(right_rgb)
+                new_width = round(right_img.width * (left_rgb.shape[0] / right_img.height))
+                right_rgb = np.asarray(
+                    right_img.resize((new_width, left_rgb.shape[0]), Image.Resampling.LANCZOS)
+                )
+            ego_rgb = np.concatenate([left_rgb, right_rgb], axis=1)
+            images_b64 = {"ego_view": self.encode_rgb_jpeg(ego_rgb)}
+            image_capture_timestamps = {
+                "ego_view": max(
+                    image_capture_timestamps["left_view"],
+                    image_capture_timestamps["right_view"],
+                )
+            }
+            response_camera_mode = "single"
         primary_view = "ego_view" if "ego_view" in images_b64 else next(iter(images_b64))
         obs = {
             "image_b64": images_b64[primary_view],
             "image_capture_timestamp": image_capture_timestamps[primary_view],
-            "camera_mode": self.camera_mode,
+            "camera_mode": response_camera_mode,
             "camera_preset": self.camera_preset,
             "camera_layout": self.camera_layout,
-            "views": list(self.camera_configs.keys()),
+            "views": list(images_b64.keys()),
             "pose": pose,
             "timestamp": obs_timestamp,
             "image_capture_timestamps": image_capture_timestamps,
         }
-        if self.camera_mode == "multiview":
+        if response_camera_mode == "multiview":
             obs["images_b64"] = images_b64
         return obs
 
@@ -1401,10 +1434,16 @@ def main():
     parser.add_argument(
         "--camera-layout",
         default=DEFAULT_CAMERA_LAYOUT,
-        choices=[DEFAULT_CAMERA_LAYOUT, "gemini336l_driveway_view", "gemini336l_high_dual_view"],
+        choices=[
+            DEFAULT_CAMERA_LAYOUT,
+            "gemini336l_driveway_view",
+            GEMINI336L_HIGH_DUAL_VIEW_LAYOUT,
+            GEMINI336L_HIGH_DUAL_VIEW_CONCAT_LAYOUT,
+        ],
         help=(
             "Physical camera mount layout. Driveway view requires multiview gemini_336l; "
-            "high-dual view requires multiview gemini_336l or gemini_336l_portrait."
+            "high-dual view requires multiview gemini_336l or gemini_336l_portrait. "
+            "Use the concat layout to return left/right high-dual views as one ego_view image."
         ),
     )
     parser.add_argument(

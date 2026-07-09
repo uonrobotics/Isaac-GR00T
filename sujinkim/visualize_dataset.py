@@ -11,7 +11,7 @@ Usage:
   uv run python sujinkim/visualize_dataset.py --dataset-path /path/to/dataset --episode 5
   
   uv run python sujinkim/visualize_dataset.py \
-  --dataset-path /nas/sujinkim/data/goto/sim/20260323_lerobot_v2 \
+  --dataset-path /nas/sujinkim/data/goto/sim_v2_lerobot_single_gemini336l \
   --episode 1
 """
 
