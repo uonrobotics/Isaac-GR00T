@@ -5,13 +5,15 @@ from gr00t.data.types import ModalityConfig
 
 sign_nav_config = {
     "video": ModalityConfig(
-        delta_indices=[-36, -24, -12, 0], # history 는 action chunk(k) 를 기준으로 {t-3k, t-2k, t-k, t} << HAMLET 
+        delta_indices=[0], # history 는 action chunk(k) 를 기준으로 {t-3k, t-2k, t-k, t} << HAMLET 
         modality_keys=["ego_view"],
     ),
     "state": ModalityConfig(
         delta_indices=[0],
         modality_keys=[
             "speed",
+            # "route",
+            # "goal_heading",
         ],
     ),
     "action": ModalityConfig(

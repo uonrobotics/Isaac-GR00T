@@ -3,7 +3,7 @@ from gr00t.data.embodiment_tags import EmbodimentTag
 from gr00t.data.types import ModalityConfig
 
 
-point_nav_multiview_config = {
+point_nav_dualview_config = {
     "video": ModalityConfig(
         delta_indices=[0],
         modality_keys=["left_view", "right_view"],
@@ -46,6 +46,6 @@ point_nav_multiview_config = {
 }
 
 register_modality_config(
-    point_nav_multiview_config,
+    point_nav_dualview_config,
     embodiment_tag=EmbodimentTag.NEW_EMBODIMENT,
 )
