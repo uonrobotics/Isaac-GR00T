@@ -32,6 +32,7 @@ RESET_OBS_WARMUP_FRAMES = 8
 RESET_SETTLE_SEC = 1.0
 TIMING_LOG_EVERY = 10
 TIMING_WINDOW = 50
+FIXED_RESET_POSE = {"x": 7.5, "y": 0.8, "yaw": 1.25}
 ANSI_RESET = "\033[0m"
 ANSI_BOLD = "\033[1m"
 ANSI_CYAN = "\033[96m"
@@ -177,7 +178,7 @@ def main():
     sleep_durations = deque(maxlen=TIMING_WINDOW)
 
     def keyboard_listener():
-        print("[CLIENT] press r + Enter for random reset; f + Enter for first-pose reset")
+        print("[CLIENT] press r + Enter for random reset; f + Enter for fixed-pose reset")
         while True:
             try:
                 key = input().strip().lower()
@@ -188,7 +189,7 @@ def main():
                 send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
                 random_reset_requested.set()
             elif key == "f":
-                print("\n[CLIENT] first-pose reset requested\n")
+                print("\n[CLIENT] fixed-pose reset requested\n")
                 send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
                 fixed_reset_requested.set()
 
@@ -208,14 +209,14 @@ def main():
             pose = obs_resp.get("pose")
         elif reset_kind == "fixed":
             if fixed_spawn_pose is None:
-                raise RuntimeError("first-pose reset requested before initial pose was captured")
+                raise RuntimeError("fixed-pose reset requested before fixed pose was configured")
             reset_resp = sim.request(
                 {
                     "cmd": "reset_to_pose",
                     "x": fixed_spawn_pose["x"],
                     "y": fixed_spawn_pose["y"],
                     "yaw": fixed_spawn_pose["yaw"],
-                    "label": "first_pose",
+                    "label": "fixed_pose",
                 }
             )
             if not reset_resp.get("ok", False):
@@ -255,12 +256,12 @@ def main():
         sim.connect()
         infer.connect()
         cmd._connect()
-        fixed_spawn_pose = reset_episode("random")
-        if isinstance(fixed_spawn_pose, dict):
-            print(
-                f"[CLIENT] first-pose reset target captured: "
-                f"({fixed_spawn_pose['x']:.2f},{fixed_spawn_pose['y']:.2f},{fixed_spawn_pose['yaw']:.2f})"
-            )
+        fixed_spawn_pose = dict(FIXED_RESET_POSE)
+        print(
+            f"[CLIENT] fixed-pose reset target: "
+            f"({fixed_spawn_pose['x']:.2f},{fixed_spawn_pose['y']:.2f},{fixed_spawn_pose['yaw']:.2f})"
+        )
+        reset_episode("random")
 
         while True:
             if fixed_reset_requested.is_set() or random_reset_requested.is_set():
