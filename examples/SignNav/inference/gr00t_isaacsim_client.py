@@ -12,6 +12,7 @@ previous command feedback only; Isaac Sim remains the robot/camera simulator.
 from __future__ import annotations
 
 import argparse
+from collections import deque
 import json
 import socket
 import time
@@ -29,6 +30,14 @@ RESET_STOP_REPEATS = 8
 RESET_STOP_GAP_SEC = 0.05
 RESET_OBS_WARMUP_FRAMES = 8
 RESET_SETTLE_SEC = 1.0
+TIMING_LOG_EVERY = 10
+TIMING_WINDOW = 50
+FIXED_RESET_POSE = {"x": 8.0, "y": 1.0, "yaw": 1.25}
+ANSI_RESET = "\033[0m"
+ANSI_BOLD = "\033[1m"
+ANSI_CYAN = "\033[96m"
+ANSI_YELLOW = "\033[93m"
+ANSI_MAGENTA = "\033[95m"
 
 
 class JsonSocketClient:
@@ -142,6 +151,12 @@ def main():
     parser.add_argument("--reset-stop-gap-sec", type=float, default=RESET_STOP_GAP_SEC)
     parser.add_argument("--reset-obs-warmup-frames", type=int, default=RESET_OBS_WARMUP_FRAMES)
     parser.add_argument("--reset-settle-sec", type=float, default=RESET_SETTLE_SEC)
+    parser.add_argument(
+        "--timing-log-every",
+        type=int,
+        default=TIMING_LOG_EVERY,
+        help="Print loop timing every N inference cycles; set 0 to disable.",
+    )
     args = parser.parse_args()
 
     sim = JsonSocketClient(args.sim_host, args.sim_port, "ISAACSIM")
@@ -153,10 +168,17 @@ def main():
     cmd_seq = 0
     prev_linear = 0.0
     prev_angular = 0.0
-    reset_requested = threading.Event()
+    random_reset_requested = threading.Event()
+    fixed_reset_requested = threading.Event()
+    fixed_spawn_pose = None
+    loop_durations = deque(maxlen=TIMING_WINDOW)
+    obs_durations = deque(maxlen=TIMING_WINDOW)
+    infer_durations = deque(maxlen=TIMING_WINDOW)
+    cmd_durations = deque(maxlen=TIMING_WINDOW)
+    sleep_durations = deque(maxlen=TIMING_WINDOW)
 
     def keyboard_listener():
-        print("[CLIENT] press r + Enter for random reset")
+        print("[CLIENT] press r + Enter for random reset; f + Enter for fixed-pose reset")
         while True:
             try:
                 key = input().strip().lower()
@@ -165,7 +187,11 @@ def main():
             if key == "r":
                 print("\n[CLIENT] random reset requested\n")
                 send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
-                reset_requested.set()
+                random_reset_requested.set()
+            elif key == "f":
+                print("\n[CLIENT] fixed-pose reset requested\n")
+                send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
+                fixed_reset_requested.set()
 
     threading.Thread(target=keyboard_listener, daemon=True, name="keyboard-reset").start()
 
@@ -173,17 +199,34 @@ def main():
         print(f"[CLIENT] reset: forcing cmd_vel=0 ({label})")
         send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
 
-    def reset_episode():
+    def reset_episode(reset_kind: str = "random"):
         nonlocal current_episode_id
         force_stop_for_reset("before sim reset")
         if args.no_reset:
             obs_resp = sim.request({"cmd": "get_obs"})
             if not obs_resp.get("ok", False):
                 raise RuntimeError(f"initial get_obs failed: {obs_resp}")
+            pose = obs_resp.get("pose")
+        elif reset_kind == "fixed":
+            if fixed_spawn_pose is None:
+                raise RuntimeError("fixed-pose reset requested before fixed pose was configured")
+            reset_resp = sim.request(
+                {
+                    "cmd": "reset_to_pose",
+                    "x": fixed_spawn_pose["x"],
+                    "y": fixed_spawn_pose["y"],
+                    "yaw": fixed_spawn_pose["yaw"],
+                    "label": "fixed_pose",
+                }
+            )
+            if not reset_resp.get("ok", False):
+                raise RuntimeError(f"fixed sim reset failed: {reset_resp}")
+            pose = reset_resp.get("pose")
         else:
             reset_resp = sim.request({"cmd": "reset"})
             if not reset_resp.get("ok", False):
                 raise RuntimeError(f"sim reset failed: {reset_resp}")
+            pose = reset_resp.get("pose")
         force_stop_for_reset("after sim reset")
         if args.reset_settle_sec > 0.0:
             print(f"[CLIENT] reset: settling robot/camera for {args.reset_settle_sec:.1f}s")
@@ -196,33 +239,54 @@ def main():
                 print("[CLIENT] reset: warming camera frames")
         force_stop_for_reset("before inference resume")
         current_episode_id += 1
-        print(f"[CLIENT] reset: episode {current_episode_id} ready; inference may resume")
+        if isinstance(pose, dict):
+            print(
+                f"[CLIENT] reset: episode {current_episode_id} ready "
+                f"kind={reset_kind} pose=({pose['x']:.2f},{pose['y']:.2f},{pose['yaw']:.2f}); "
+                "inference may resume"
+            )
+        else:
+            print(
+                f"[CLIENT] reset: episode {current_episode_id} ready "
+                f"kind={reset_kind}; inference may resume"
+            )
+        return pose
 
     try:
         sim.connect()
         infer.connect()
         cmd._connect()
-        reset_episode()
+        fixed_spawn_pose = dict(FIXED_RESET_POSE)
+        print(
+            f"[CLIENT] fixed-pose reset target: "
+            f"({fixed_spawn_pose['x']:.2f},{fixed_spawn_pose['y']:.2f},{fixed_spawn_pose['yaw']:.2f})"
+        )
+        reset_episode("random")
 
         while True:
-            if reset_requested.is_set():
-                reset_requested.clear()
+            if fixed_reset_requested.is_set() or random_reset_requested.is_set():
+                reset_kind = "fixed" if fixed_reset_requested.is_set() else "random"
+                fixed_reset_requested.clear()
+                random_reset_requested.clear()
                 try:
-                    reset_episode()
+                    reset_episode(reset_kind)
                     prev_linear = 0.0
                     prev_angular = 0.0
-                    print("[CLIENT] reset complete\n")
+                    print(f"[CLIENT] {reset_kind} reset complete\n")
                 except Exception as e:
                     print(f"[CLIENT] reset failed: {e}")
                     force_stop_for_reset("reset failed")
                 continue
 
             loop_t = time.time()
+            obs_t = time.time()
             obs_resp = sim.request({"cmd": "get_obs"})
+            obs_sec = time.time() - obs_t
             if not obs_resp.get("ok", False):
                 print(f"[SIM] get_obs failed: {obs_resp}")
                 time.sleep(period)
                 continue
+            pose = obs_resp.get("pose")
 
             images_b64 = obs_resp.get("images_b64")
             if isinstance(images_b64, dict):
@@ -245,7 +309,9 @@ def main():
                 "cmd_angular": prev_angular,
             }
 
+            infer_t = time.time()
             action = infer.request(infer_payload)
+            infer_sec = time.time() - infer_t
 
             linear = float(action.get("linear", 0.0))
             angular = float(action.get("angular", 0.0))
@@ -260,15 +326,48 @@ def main():
                 "action_step": action_step,
                 "client_send_time": time.time(),
             }
+            cmd_t = time.time()
             cmd.send(cmd_msg)
+            cmd_sec = time.time() - cmd_t
+            pose_text = ""
+            if isinstance(pose, dict):
+                pose_text = (
+                    f" pose=({float(pose['x']):+.2f},{float(pose['y']):+.2f},"
+                    f"{float(pose['yaw']):+.2f})"
+                )
             print(
                 f"[CLIENT] cmd seq={cmd_seq} action_step={action_step} "
-                f"linear={linear:+.3f} angular={angular:+.3f}"
+                f"linear={linear:+.3f} angular={angular:+.3f}{pose_text}"
             )
 
             elapsed = time.time() - loop_t
+            sleep_sec = max(0.0, period - elapsed)
             if elapsed < period:
-                time.sleep(period - elapsed)
+                time.sleep(sleep_sec)
+            loop_sec = time.time() - loop_t
+            loop_durations.append(loop_sec)
+            obs_durations.append(obs_sec)
+            infer_durations.append(infer_sec)
+            cmd_durations.append(cmd_sec)
+            sleep_durations.append(sleep_sec)
+            if args.timing_log_every > 0 and cmd_seq % args.timing_log_every == 0:
+                avg_loop = sum(loop_durations) / len(loop_durations)
+                avg_obs = sum(obs_durations) / len(obs_durations)
+                avg_infer = sum(infer_durations) / len(infer_durations)
+                avg_cmd = sum(cmd_durations) / len(cmd_durations)
+                avg_sleep = sum(sleep_durations) / len(sleep_durations)
+                actual_hz = 1.0 / avg_loop if avg_loop > 0.0 else 0.0
+                print(
+                    f"{ANSI_BOLD}{ANSI_CYAN}⏱️  [TIMING]{ANSI_RESET} "
+                    f"{ANSI_YELLOW}seq={cmd_seq} target={args.hz:.2f}Hz "
+                    f"actual={actual_hz:.2f}Hz{ANSI_RESET} "
+                    f"{ANSI_MAGENTA}loop={loop_sec * 1000:.1f}ms "
+                    f"avg={avg_loop * 1000:.1f}ms{ANSI_RESET} "
+                    f"obs={obs_sec * 1000:.1f}/{avg_obs * 1000:.1f}ms "
+                    f"infer={infer_sec * 1000:.1f}/{avg_infer * 1000:.1f}ms "
+                    f"cmd={cmd_sec * 1000:.1f}/{avg_cmd * 1000:.1f}ms "
+                    f"sleep={sleep_sec * 1000:.1f}/{avg_sleep * 1000:.1f}ms"
+                )
 
     except KeyboardInterrupt:
         print("\n[CLIENT] interrupted")

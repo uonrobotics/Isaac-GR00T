@@ -13,8 +13,12 @@ CAMERA_SETUP=(single gemini_336l default)
 CAMERA_MODE="${CAMERA_SETUP[0]}"
 CAMERA_PRESET="${CAMERA_SETUP[1]}"
 CAMERA_LAYOUT="${CAMERA_SETUP[2]}"
+LOG_DIR="${REPO_ROOT}/.logs/signnav"
+mkdir -p "$LOG_DIR"
+ISAACSIM_LOG="${LOG_DIR}/isaacsim_$(date +%Y%m%d_%H%M%S).log"
 
 echo "[CAMERA] mode=${CAMERA_MODE} preset=${CAMERA_PRESET} layout=${CAMERA_LAYOUT}"
+echo "[ISAACSIM] log: ${ISAACSIM_LOG}"
 
 cleanup() {
     if [[ -n "${ISAACSIM_PID:-}" ]]; then
@@ -30,7 +34,7 @@ trap cleanup EXIT INT TERM
     --camera-layout "$CAMERA_LAYOUT" \
     --viewport-renderer rtx \
     --camera-renderer realtime \
-    --enable-ros2-bridge &
+    --enable-ros2-bridge >"$ISAACSIM_LOG" 2>&1 &
 ISAACSIM_PID=$!
 
 python3 "${REPO_ROOT}/examples/SignNav/inference/gr00t_isaacsim_client.py" \

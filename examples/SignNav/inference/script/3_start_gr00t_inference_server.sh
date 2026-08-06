@@ -86,6 +86,6 @@ uv run python gr00t_inference_server.py \
 
 
 
-# ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t/gr00t-finetune+sim_v1_lerobot_PROMPTv1/gr00t-finetune+sim_v1_lerobot_PROMPTv1--20260724/checkpoint-30000/ --prompt-version 1
+# ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t/gr00t-finetune+sim_v1_lerobot_PROMPTv1/gr00t-finetune+sim_v1_lerobot_PROMPTv1--20260805/checkpoint-80000/ --prompt-version 1
 # ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t/gr00t-finetune+sim_v1_lerobot_PROMPTv2/gr00t-finetune+sim_v1_lerobot_PROMPTv2--20260724/checkpoint-30000/ --prompt-version 2
 # ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t/gr00t-finetune+sim_v1_lerobot_PROMPTv3/gr00t-finetune+sim_v1_lerobot_PROMPTv3--20260724/checkpoint-30000/ --prompt-version 3
