@@ -36,6 +36,7 @@ import json
 from pathlib import Path
 import queue
 import socket
+import sys
 import threading
 import time
 from urllib.parse import urlparse
@@ -53,6 +54,11 @@ WARMUP_STEPS = 4
 ACTION_STEP_IDX = 1
 DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[1] / "modality_config_signnav.py"
 DEFAULT_TARGET_AREA = 1
+DEFAULT_SIGN_SEG_GENERATOR = Path(
+    "/home/sujin/workspace/physical-ai/sign_seg_test/jobs/segmented_rgb_generator.py"
+)
+DEFAULT_SEGMENTED_VIEW_KEY = "segmented_ego_view"
+DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parent / "script" / "third_party" / "sam3"
 
 PROMPT_VERSION = 1 
 PROMPT_TEMPLATES = {
@@ -231,11 +237,11 @@ _DASHBOARD_HTML = """\
          display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 10px; }
   h1 { color: #7fd36b; font-size: 1.15rem; letter-spacing: 1px; }
   .grid { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; }
-  .views { min-height: calc(100vh - 50px); display: flex; align-items: flex-start; justify-content: center; }
+  .views { min-height: calc(100vh - 50px); display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; align-items: flex-start; }
   .camera { background: #050507; border: 1px solid #303038; border-radius: 8px; overflow: hidden; }
   .camera .title { padding: 5px 8px; color: #aeb3bd; background: #15161b; border-bottom: 1px solid #303038; font-size: 0.72rem; text-transform: uppercase; }
   .camera img { width: 100%; height: auto; object-fit: contain; display: block; }
-  .views .camera { width: min(100%, 1280px); }
+  .camera.hidden { display: none; }
   .panel { background: #191a20; border: 1px solid #303038; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .label { color: #8d9098; font-size: 0.75rem; text-transform: uppercase; }
@@ -261,6 +267,7 @@ _DASHBOARD_HTML = """\
 <div class="grid">
   <div class="views">
     <div class="camera"><div class="title">ego view / model input</div><img id="cam" src="/image" alt="ego view"></div>
+    <div class="camera hidden" id="seg_camera"><div class="title">segmented ego view / SAM3</div><img id="seg_cam" src="/image/segmented_ego_view" alt="segmented ego view"></div>
   </div>
   <div class="panel">
     <div class="row"><span class="label">Step</span><span class="value" id="step">-</span></div>
@@ -270,6 +277,7 @@ _DASHBOARD_HTML = """\
     <div class="row"><span class="label">Speed</span><span class="value" id="speed">-</span></div>
     <div class="row"><span class="label">Action Step</span><span class="value" id="action_step">-</span></div>
     <div class="row"><span class="label">Cam to Input</span><span class="value" id="latency">-</span></div>
+    <div class="row"><span class="label">SAM3</span><span class="value" id="sam3">-</span></div>
     <div class="label">Linear cmd</div>
     <div class="row"><span class="value" id="vx">-</span></div>
     <div class="bar-wrap"><div class="bar-center"></div><div class="bar" id="vx_bar"></div></div>
@@ -304,6 +312,10 @@ es.onmessage = e => {
       ? d.action_step + " / " + (d.action_horizon - 1)
       : (d.action_step ?? "-");
   document.getElementById("latency").textContent = d.camera_to_model_input_ms !== undefined ? d.camera_to_model_input_ms.toFixed(1) + " ms" : "-";
+  document.getElementById("sam3").textContent =
+    d.sam3_timing_ms && d.sam3_timing_ms.wall_ms !== undefined
+      ? d.sam3_timing_ms.wall_ms.toFixed(1) + " ms"
+      : "-";
   document.getElementById("vx").textContent = d.vx !== undefined ? d.vx.toFixed(4) : "-";
   document.getElementById("wz").textContent = d.wz !== undefined ? d.wz.toFixed(4) : "-";
   if (d.vx !== undefined) barUpdate("vx_bar", d.vx, 1.0);
@@ -312,6 +324,17 @@ es.onmessage = e => {
 setInterval(() => {
   const t = Date.now();
   document.getElementById("cam").src = "/image?" + t;
+  fetch("/image/segmented_ego_view?" + t, { method: "HEAD" })
+    .then(resp => {
+      const box = document.getElementById("seg_camera");
+      if (resp.status === 200) {
+        box.classList.remove("hidden");
+        document.getElementById("seg_cam").src = "/image/segmented_ego_view?" + t;
+      } else {
+        box.classList.add("hidden");
+      }
+    })
+    .catch(() => document.getElementById("seg_camera").classList.add("hidden"));
 }, 150);
 document.getElementById("save_ego").onclick = async () => {
   const btn = document.getElementById("save_ego");
@@ -376,8 +399,38 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_bytes(base64.b64decode(b64), HTTPStatus.OK, "image/jpeg")
             return
 
+        if path.startswith("/image/"):
+            view_key = path.removeprefix("/image/")
+            with _dash_lock:
+                b64 = _dash_state["images_b64"].get(view_key)
+            if b64 is None:
+                self.send_response(HTTPStatus.NO_CONTENT)
+                self.end_headers()
+                return
+            self._send_bytes(base64.b64decode(b64), HTTPStatus.OK, "image/jpeg")
+            return
+
         if path == "/stream":
             self._stream_events()
+            return
+
+        self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_HEAD(self):
+        path = urlparse(self.path).path
+        if path == "/image":
+            with _dash_lock:
+                exists = _dash_state["image_b64"] is not None
+            self.send_response(HTTPStatus.OK if exists else HTTPStatus.NO_CONTENT)
+            self.end_headers()
+            return
+
+        if path.startswith("/image/"):
+            view_key = path.removeprefix("/image/")
+            with _dash_lock:
+                exists = _dash_state["images_b64"].get(view_key) is not None
+            self.send_response(HTTPStatus.OK if exists else HTTPStatus.NO_CONTENT)
+            self.end_headers()
             return
 
         self.send_error(HTTPStatus.NOT_FOUND)
@@ -466,6 +519,157 @@ def decode_images_b64(images_b64: dict) -> dict:
     return {key: decode_image_b64(value) for key, value in images_b64.items()}
 
 
+def encode_image_b64(image_np: np.ndarray) -> str:
+    image = Image.fromarray(image_np.astype(np.uint8), mode="RGB")
+    buf = io.BytesIO()
+    image.save(buf, format="JPEG", quality=90)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def normalize_sam3_device(device: str) -> str:
+    device = str(device)
+    if not device.startswith("cuda:"):
+        return device
+
+    index_text = device.split(":", 1)[1]
+    try:
+        import torch
+
+        torch.cuda.set_device(int(index_text))
+    except Exception as exc:
+        print(f"[SAM3] Warning: failed to set CUDA device {device!r}: {exc}")
+    print(f"[SAM3] Normalized device {device!r} -> 'cuda' for SAM3 model builder")
+    return "cuda"
+
+
+class Sam3SegmentedViewGenerator:
+    def __init__(
+        self,
+        *,
+        generator_path: str | Path,
+        device: str,
+        prompt: str,
+        confidence: float,
+        min_mask_area: int,
+        checkpoint_path: str | None,
+        bpe_path: str | None,
+        output_kind: str,
+        merge_gap_ratio: float,
+        merge_gap_pixels: int,
+        bbox_padding_ratio: float,
+        bbox_padding_pixels: int,
+        bbox_line_thickness: int,
+        min_box_area_ratio: float,
+        min_box_width_ratio: float,
+        min_box_height_ratio: float,
+    ):
+        generator_path = Path(generator_path).expanduser().resolve()
+        if not generator_path.exists():
+            raise FileNotFoundError(f"SAM3 segmented RGB generator not found: {generator_path}")
+        spec = importlib.util.spec_from_file_location("signnav_segmented_rgb_generator", generator_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"failed to load SAM3 generator module: {generator_path}")
+        self.generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.generator)
+
+        if DEFAULT_SAM3_THIRD_PARTY_ROOT.exists():
+            sys.path.insert(0, str(DEFAULT_SAM3_THIRD_PARTY_ROOT))
+        from signseg_benchmark.runners.sam3 import Sam3TextRunner
+
+        sam3_device = normalize_sam3_device(device)
+        config = {
+            "device": sam3_device,
+            "text_prompt": prompt,
+            "confidence": confidence,
+            "min_mask_area": min_mask_area,
+        }
+        if checkpoint_path:
+            config["checkpoint_path"] = checkpoint_path
+        if bpe_path:
+            config["bpe_path"] = bpe_path
+
+        print(f"[SAM3] Loading segmented ego-view generator on {sam3_device} prompt={prompt!r}")
+        self.runner = Sam3TextRunner(config)
+        self.output_kind = output_kind
+        self.merge_gap_ratio = merge_gap_ratio
+        self.merge_gap_pixels = merge_gap_pixels
+        self.bbox_padding_ratio = bbox_padding_ratio
+        self.bbox_padding_pixels = bbox_padding_pixels
+        self.bbox_line_thickness = bbox_line_thickness
+        self.min_box_area_ratio = min_box_area_ratio
+        self.min_box_width_ratio = min_box_width_ratio
+        self.min_box_height_ratio = min_box_height_ratio
+        print(f"[SAM3] Ready. output_kind={output_kind}")
+
+    def __call__(self, image_np: np.ndarray) -> tuple[np.ndarray, dict]:
+        import cv2
+
+        image = Image.fromarray(image_np.astype(np.uint8), mode="RGB")
+        prediction = self.runner.predict(image)
+        prediction = self.generator.filter_small_instances(
+            prediction,
+            image.width,
+            image.height,
+            self.min_box_area_ratio,
+            self.min_box_width_ratio,
+            self.min_box_height_ratio,
+        )
+
+        if self.output_kind == "red-box":
+            output = np.asarray(image.convert("RGB")).copy()
+            gap_pixels = max(
+                float(self.merge_gap_pixels),
+                self.merge_gap_ratio * max(image.width, image.height),
+            )
+            for box in self.generator.grouped_boxes(prediction, image.width, image.height, gap_pixels):
+                x1, y1, x2, y2 = self.generator.expand_box(
+                    box,
+                    image.width,
+                    image.height,
+                    self.bbox_padding_ratio,
+                    self.bbox_padding_pixels,
+                )
+                cv2.rectangle(output, (x1, y1), (x2, y2), (255, 0, 0), self.bbox_line_thickness)
+        elif self.output_kind == "overlay":
+            output = np.asarray(image.convert("RGB")).copy()
+            overlay = output.copy()
+            for idx, (box, mask, score) in enumerate(
+                zip(prediction.boxes, prediction.masks, prediction.scores, strict=True)
+            ):
+                color = np.array(
+                    ((151 * idx + 180) % 255, (89 * idx + 110) % 255, (37 * idx + 50) % 255),
+                    dtype=np.uint8,
+                )
+                overlay[mask] = color
+                x1, y1, x2, y2 = box.astype(int)
+                cv2.rectangle(output, (x1, y1), (x2, y2), color.tolist(), 2)
+                cv2.putText(
+                    output,
+                    f"sam3 {float(score):.2f}",
+                    (x1, max(18, y1 - 5)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color.tolist(),
+                    1,
+                    cv2.LINE_AA,
+                )
+            output = cv2.addWeighted(overlay, 0.35, output, 0.65, 0)
+        elif self.output_kind == "masked":
+            rgb = np.asarray(image.convert("RGB"))
+            mask = self.generator.union_mask(prediction, image.height, image.width)
+            output = np.zeros_like(rgb)
+            output[mask] = rgb[mask]
+        elif self.output_kind == "mask":
+            mask = self.generator.union_mask(prediction, image.height, image.width).astype(np.uint8) * 255
+            output = np.repeat(mask[:, :, None], 3, axis=2)
+        else:
+            raise ValueError(f"Unsupported online SAM3 output kind: {self.output_kind}")
+
+        timing = dict(prediction.timing_ms)
+        timing["num_masks"] = int(len(prediction.masks))
+        return output.astype(np.uint8), timing
+
+
 def get_policy_video_keys(policy) -> list[str]:
     try:
         keys = list(policy.modality_configs["video"].modality_keys)
@@ -550,7 +754,7 @@ def select_vel_cmd_step(vel_cmd, action_step: int) -> tuple[float, float, int, i
     return vx, wz, idx, horizon
 
 
-def handle_client(conn, addr, policy, action_step: int):
+def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmented_view_key: str = DEFAULT_SEGMENTED_VIEW_KEY):
     print(f"[GR00T] connected from {addr}")
     policy.reset()
     buf = b""
@@ -580,6 +784,18 @@ def handle_client(conn, addr, policy, action_step: int):
             if not images_b64:
                 raise KeyError("image")
             images_np = decode_images_b64(images_b64)
+            sam3_timing = None
+            if segmenter is not None:
+                ego_image = images_np.get("ego_view")
+                if ego_image is None:
+                    ego_image = next(iter(images_np.values()), None)
+                if ego_image is None:
+                    raise ValueError("SAM3 segmentation requested but no ego RGB image is available")
+                segment_t = time.time()
+                segmented_np, sam3_timing = segmenter(ego_image)
+                sam3_timing["wall_ms"] = (time.time() - segment_t) * 1000.0
+                images_np[segmented_view_key] = segmented_np
+                images_b64[segmented_view_key] = encode_image_b64(segmented_np)
             update_frame_buffers(frame_buffers, images_np, video_keys, video_horizon)
 
             episode_id = req.get("episode_id")
@@ -625,6 +841,7 @@ def handle_client(conn, addr, policy, action_step: int):
                         "action_horizon": 16,
                         "camera_to_model_input_ms": camera_to_model_input_ms,
                         "per_view_camera_latency_ms": per_view_camera_latency_ms,
+                        "sam3_timing_ms": sam3_timing,
                     },
                 )
                 print(f"[{step:05d}] WARMUP ({step + 1}/{WARMUP_STEPS})")
@@ -662,6 +879,7 @@ def handle_client(conn, addr, policy, action_step: int):
                     "action_horizon": action_horizon,
                     "camera_to_model_input_ms": camera_to_model_input_ms,
                     "per_view_camera_latency_ms": per_view_camera_latency_ms,
+                    "sam3_timing_ms": sam3_timing,
                 },
             )
             latency_text = (
@@ -674,6 +892,11 @@ def handle_client(conn, addr, policy, action_step: int):
                 f"v={vx:+.3f} w={wz:+.3f} "
                 f"speed={speed:.3f} prompt_v{prompt_state['prompt_version']} "
                 f"AREA_{prompt_state['target_area']} {latency_text}"
+                + (
+                    f" sam3={sam3_timing.get('wall_ms', 0.0):.1f}ms"
+                    if isinstance(sam3_timing, dict)
+                    else ""
+                )
             )
             step += 1
 
@@ -695,6 +918,40 @@ def main():
     parser.add_argument("--action-step", type=int, default=ACTION_STEP_IDX,
                         help="Which step of the 16-step action horizon to execute (0-based)")
     parser.add_argument("--modality-config-path", default=str(DEFAULT_MODALITY_CONFIG))
+    parser.add_argument(
+        "--enable-sam3-segmentation",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Generate an additional segmented ego-view with SAM3 and expose it as a video input.",
+    )
+    parser.add_argument(
+        "--disable-sam3-segmentation",
+        dest="enable_sam3_segmentation",
+        action="store_false",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument("--segmented-view-key", default=DEFAULT_SEGMENTED_VIEW_KEY)
+    parser.add_argument("--sam3-generator-path", default=str(DEFAULT_SIGN_SEG_GENERATOR))
+    parser.add_argument("--sam3-device", default=None)
+    parser.add_argument("--sam3-prompt", default="rectangular directional sign panel")
+    parser.add_argument("--sam3-confidence", type=float, default=0.8)
+    parser.add_argument("--sam3-min-mask-area", type=int, default=20)
+    parser.add_argument("--sam3-checkpoint-path", default=None)
+    parser.add_argument("--sam3-bpe-path", default=None)
+    parser.add_argument(
+        "--sam3-output-kind",
+        choices=("red-box", "overlay", "masked", "mask"),
+        default="red-box",
+        help="Online segmented view style. Matches the common modes from segmented_rgb_generator.py.",
+    )
+    parser.add_argument("--sam3-merge-gap-ratio", type=float, default=0.02)
+    parser.add_argument("--sam3-merge-gap-pixels", type=int, default=8)
+    parser.add_argument("--sam3-bbox-padding-ratio", type=float, default=0.08)
+    parser.add_argument("--sam3-bbox-padding-pixels", type=int, default=4)
+    parser.add_argument("--sam3-bbox-line-thickness", type=int, default=2)
+    parser.add_argument("--sam3-min-box-area-ratio", type=float, default=0.003)
+    parser.add_argument("--sam3-min-box-width-ratio", type=float, default=0.03)
+    parser.add_argument("--sam3-min-box-height-ratio", type=float, default=0.03)
     args = parser.parse_args()
 
     with _prompt_lock:
@@ -715,6 +972,39 @@ def main():
         f"[GR00T] Model loaded. video_keys={get_policy_video_keys(policy)} "
         f"video_horizon={get_video_horizon(policy)} action_step={args.action_step}"
     )
+    video_keys = get_policy_video_keys(policy)
+    segmenter = None
+    if args.enable_sam3_segmentation:
+        segmenter = Sam3SegmentedViewGenerator(
+            generator_path=args.sam3_generator_path,
+            device=args.sam3_device or args.device,
+            prompt=args.sam3_prompt,
+            confidence=args.sam3_confidence,
+            min_mask_area=args.sam3_min_mask_area,
+            checkpoint_path=args.sam3_checkpoint_path,
+            bpe_path=args.sam3_bpe_path,
+            output_kind=args.sam3_output_kind,
+            merge_gap_ratio=args.sam3_merge_gap_ratio,
+            merge_gap_pixels=args.sam3_merge_gap_pixels,
+            bbox_padding_ratio=args.sam3_bbox_padding_ratio,
+            bbox_padding_pixels=args.sam3_bbox_padding_pixels,
+            bbox_line_thickness=args.sam3_bbox_line_thickness,
+            min_box_area_ratio=args.sam3_min_box_area_ratio,
+            min_box_width_ratio=args.sam3_min_box_width_ratio,
+            min_box_height_ratio=args.sam3_min_box_height_ratio,
+        )
+        if args.segmented_view_key in video_keys:
+            print(f"[SAM3] {args.segmented_view_key!r} is in model video_keys; it will be used.")
+        else:
+            print(
+                f"[SAM3] Warning: {args.segmented_view_key!r} is not in model video_keys={video_keys}. "
+                "The segmented image will be generated but not consumed by this checkpoint."
+            )
+    elif args.segmented_view_key in video_keys:
+        print(
+            f"[SAM3] Warning: model expects {args.segmented_view_key!r}, but SAM3 segmentation is disabled. "
+            "The server will fall back to ego_view for missing video keys."
+        )
 
     web_thread = threading.Thread(target=_run_web, args=(args.web_port,), daemon=True)
     web_thread.start()
@@ -732,7 +1022,14 @@ def main():
     try:
         while True:
             conn, addr = server.accept()
-            handle_client(conn, addr, policy, args.action_step)
+            handle_client(
+                conn,
+                addr,
+                policy,
+                args.action_step,
+                segmenter=segmenter,
+                segmented_view_key=args.segmented_view_key,
+            )
     except KeyboardInterrupt:
         print("\n[GR00T] Shutting down.")
     finally:

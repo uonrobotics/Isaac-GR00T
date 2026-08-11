@@ -1,8 +1,8 @@
 """Desktop SignNav GR00T attention-map viewer.
 
 This app opens a native desktop window. Pick a GR00T checkpoint directory,
-pick one RGB image, run SignNav inference, and inspect the action-head
-cross-attention overlay.
+pick RGB inputs, run SignNav inference, and inspect the action-head
+cross-attention overlay for each model image input.
 
 The heatmap summarizes action-token -> image-token cross-attention by averaging
 selected image-attention blocks, heads, and action horizon steps.
@@ -178,10 +178,25 @@ def get_video_horizon(policy) -> int:
         return 1
 
 
-def build_observation(image: np.ndarray, speed: float, language: str, policy):
+def image_for_video_key(video_key: str, images: dict[str, np.ndarray]) -> np.ndarray:
+    if video_key in images:
+        return images[video_key]
+    if video_key == "segmented_ego_view" and "segmented_ego_view" in images:
+        return images["segmented_ego_view"]
+    if video_key in ("ego_view", "rgb_ego_view") and "rgb_ego_view" in images:
+        return images["rgb_ego_view"]
+    if "ego_view" in images:
+        return images["ego_view"]
+    if "rgb_ego_view" in images:
+        return images["rgb_ego_view"]
+    return next(iter(images.values()))
+
+
+def build_observation(images: dict[str, np.ndarray], speed: float, language: str, policy):
     video = {}
     video_horizon = get_video_horizon(policy)
     for key in get_policy_video_keys(policy):
+        image = image_for_video_key(key, images)
         frames = np.stack([image] * video_horizon, axis=0)
         video[key] = frames[np.newaxis].astype(np.uint8)
 
@@ -222,13 +237,14 @@ def normalize_scores(scores: np.ndarray) -> np.ndarray:
     return scores / (float(scores.max()) + 1e-8)
 
 
-def attention_heatmap(policy, attn_store: dict, obs) -> tuple[np.ndarray, list[dict]]:
+def attention_heatmaps(policy, attn_store: dict, obs) -> tuple[dict[str, np.ndarray], list[dict]]:
     if not attn_store:
         raise RuntimeError("no cross-attention maps were captured")
 
     image_mask = get_image_mask(policy, obs)
     action_horizon = policy.model.action_head.action_horizon
-    block_heatmaps = []
+    video_keys = get_policy_video_keys(policy)
+    per_view_block_heatmaps = {key: [] for key in video_keys}
     summaries = []
 
     for name, maps in attn_store.items():
@@ -240,27 +256,87 @@ def attention_heatmap(policy, attn_store: dict, obs) -> tuple[np.ndarray, list[d
         if image_scores.size == 0:
             continue
         image_scores = normalize_scores(image_scores)
-        rows, cols = best_grid(image_scores.size)
-        padded = np.zeros(rows * cols, dtype=np.float32)
-        padded[: image_scores.size] = image_scores
-        block_heatmaps.append(padded.reshape(rows, cols))
-        summaries.append({"block": name.split(".")[-3], "tokens": int(image_scores.size), "grid": f"{rows}x{cols}"})
+        if len(video_keys) > 1 and image_scores.size >= len(video_keys):
+            score_chunks = np.array_split(image_scores, len(video_keys))
+        else:
+            score_chunks = [image_scores]
 
-    if not block_heatmaps:
+        block_summary = {
+            "block": name.split(".")[-3],
+            "tokens": int(image_scores.size),
+            "views": [],
+        }
+        for key, scores in zip(video_keys, score_chunks, strict=False):
+            if scores.size == 0:
+                continue
+            rows, cols = best_grid(scores.size)
+            padded = np.zeros(rows * cols, dtype=np.float32)
+            padded[: scores.size] = scores
+            per_view_block_heatmaps[key].append(padded.reshape(rows, cols))
+            block_summary["views"].append(
+                {"key": key, "tokens": int(scores.size), "grid": f"{rows}x{cols}"}
+            )
+        summaries.append(block_summary)
+
+    if not any(per_view_block_heatmaps.values()):
         raise RuntimeError("captured attention did not contain image tokens")
 
-    resized = [
-        cv2.resize(hm, (512, 512), interpolation=cv2.INTER_LINEAR) for hm in block_heatmaps
-    ]
-    return np.mean(np.stack(resized, axis=0), axis=0), summaries
+    heatmaps = {}
+    for key, block_heatmaps in per_view_block_heatmaps.items():
+        if not block_heatmaps:
+            continue
+        resized = [
+            cv2.resize(hm, (512, 512), interpolation=cv2.INTER_LINEAR) for hm in block_heatmaps
+        ]
+        heatmaps[key] = np.mean(np.stack(resized, axis=0), axis=0)
+    return heatmaps, summaries
 
 
-def overlay_heatmap(image: np.ndarray, heatmap: np.ndarray, alpha: float = 0.45) -> np.ndarray:
-    heatmap = normalize_scores(heatmap)
+def overlay_heatmap(
+    image: np.ndarray,
+    heatmap: np.ndarray,
+    alpha: float = 0.45,
+    *,
+    normalize: bool = True,
+) -> np.ndarray:
+    if normalize:
+        heatmap = normalize_scores(heatmap)
     heatmap = cv2.resize(heatmap, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_LINEAR)
     color = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
     color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
     return cv2.addWeighted(image.astype(np.uint8), 1.0 - alpha, color, alpha, 0)
+
+
+def combine_view_overlays(overlays: list[tuple[str, np.ndarray]]) -> np.ndarray:
+    if not overlays:
+        raise ValueError("no overlays to combine")
+    if len(overlays) == 1:
+        return overlays[0][1]
+
+    target_height = max(image.shape[0] for _, image in overlays)
+    panels = []
+    for label, image in overlays:
+        if image.shape[0] != target_height:
+            width = int(round(image.shape[1] * target_height / image.shape[0]))
+            image = cv2.resize(image, (width, target_height), interpolation=cv2.INTER_AREA)
+        header = np.full((34, image.shape[1], 3), 245, dtype=np.uint8)
+        cv2.putText(
+            header,
+            label,
+            (10, 23),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            (30, 35, 42),
+            2,
+            cv2.LINE_AA,
+        )
+        panels.append(np.vstack([header, image]))
+
+    separator = np.full((panels[0].shape[0], 8, 3), 230, dtype=np.uint8)
+    combined = panels[0]
+    for panel in panels[1:]:
+        combined = np.hstack([combined, separator, panel])
+    return combined
 
 
 def select_vel_cmd_step(vel_cmd, action_step: int) -> tuple[float, float, int, int]:
@@ -318,12 +394,27 @@ def default_initial_dir(path_value: str, fallback: Path) -> str:
 
 def run_analysis_once(args) -> int:
     print("[ANALYZE] RGB 이미지 디코딩 중...", flush=True)
-    image = Image.open(args.analysis_image_path).convert("RGB")
-    image_np = np.array(image, dtype=np.uint8)
+    rgb_image = Image.open(args.analysis_image_path).convert("RGB")
+    rgb_np = np.array(rgb_image, dtype=np.uint8)
+    images = {"rgb_ego_view": rgb_np, "ego_view": rgb_np}
+
+    segmented_preview_path = None
+    if args.analysis_segmented_image_path:
+        print("[ANALYZE] segmented RGB 이미지 디코딩 중...", flush=True)
+        segmented_image = Image.open(args.analysis_segmented_image_path).convert("RGB")
+        images["segmented_ego_view"] = np.array(segmented_image, dtype=np.uint8)
+    else:
+        segmented_image = None
+
     original_preview_path = Path(args.analysis_overlay_path).with_name("original_preview.png")
-    original_preview = image.copy()
+    original_preview = rgb_image.copy()
     original_preview.thumbnail(MAX_PREVIEW_SIZE, Image.Resampling.LANCZOS)
     original_preview.save(original_preview_path)
+    if segmented_image is not None:
+        segmented_preview_path = Path(args.analysis_overlay_path).with_name("segmented_preview.png")
+        segmented_preview = segmented_image.copy()
+        segmented_preview.thumbnail(MAX_PREVIEW_SIZE, Image.Resampling.LANCZOS)
+        segmented_preview.save(segmented_preview_path)
 
     print("[ANALYZE] 모델 로딩 중...", flush=True)
     cache = PolicyCache(device=args.device)
@@ -340,7 +431,7 @@ def run_analysis_once(args) -> int:
             normalize_prompt_version(args.analysis_prompt_version),
             normalize_target_area(args.analysis_target_area),
         )
-        obs = build_observation(image_np, args.analysis_speed, language, policy)
+        obs = build_observation(images, args.analysis_speed, language, policy)
         with torch.inference_mode():
             action, _ = policy.get_action(obs)
 
@@ -348,15 +439,45 @@ def run_analysis_once(args) -> int:
         vx, wz, selected_step, action_horizon = select_vel_cmd_step(
             action["vel_cmd"], args.analysis_action_step
         )
-        heatmap, summaries = attention_heatmap(policy, attn_store, obs)
-        overlay = overlay_heatmap(image_np, heatmap, alpha=0.45)
+        heatmaps, summaries = attention_heatmaps(policy, attn_store, obs)
 
         overlay_path = Path(args.analysis_overlay_path)
-        Image.fromarray(overlay).save(overlay_path)
-        overlay_preview_path = overlay_path.with_name("overlay_preview.png")
-        overlay_preview = Image.fromarray(overlay)
-        overlay_preview.thumbnail(MAX_PREVIEW_SIZE, Image.Resampling.LANCZOS)
-        overlay_preview.save(overlay_preview_path)
+        overlay_paths = {}
+        overlay_preview_paths = {}
+        primary_overlay_preview_path = None
+        combined_overlay_preview_path = None
+        overlay_images = []
+        for view_key, heatmap in heatmaps.items():
+            source_image = image_for_video_key(view_key, images)
+            overlay = overlay_heatmap(source_image, heatmap, alpha=0.45, normalize=False)
+            overlay_images.append((view_key, overlay))
+            view_overlay_path = (
+                overlay_path
+                if not overlay_paths
+                else overlay_path.with_name(f"{overlay_path.stem}_{view_key}{overlay_path.suffix}")
+            )
+            Image.fromarray(overlay).save(view_overlay_path)
+            view_overlay_preview_path = view_overlay_path.with_name(
+                f"{view_overlay_path.stem}_preview.png"
+            )
+            overlay_preview = Image.fromarray(overlay)
+            overlay_preview.thumbnail(MAX_PREVIEW_SIZE, Image.Resampling.LANCZOS)
+            overlay_preview.save(view_overlay_preview_path)
+            overlay_paths[view_key] = str(view_overlay_path)
+            overlay_preview_paths[view_key] = str(view_overlay_preview_path)
+            if primary_overlay_preview_path is None:
+                primary_overlay_preview_path = view_overlay_preview_path
+        if overlay_images:
+            combined_overlay = combine_view_overlays(overlay_images)
+            combined_overlay_path = overlay_path.with_name(f"{overlay_path.stem}_combined.png")
+            Image.fromarray(combined_overlay).save(combined_overlay_path)
+            combined_preview = Image.fromarray(combined_overlay)
+            combined_preview.thumbnail((MAX_PREVIEW_SIZE[0] * 2, MAX_PREVIEW_SIZE[1]), Image.Resampling.LANCZOS)
+            combined_overlay_preview_path = combined_overlay_path.with_name(
+                f"{combined_overlay_path.stem}_preview.png"
+            )
+            combined_preview.save(combined_overlay_preview_path)
+
         result = {
             "linear": vx,
             "angular": wz,
@@ -364,8 +485,15 @@ def run_analysis_once(args) -> int:
             "action_horizon": action_horizon,
             "blocks": summaries,
             "overlay_path": str(overlay_path),
-            "overlay_preview_path": str(overlay_preview_path),
+            "overlay_paths": overlay_paths,
+            "overlay_preview_path": str(combined_overlay_preview_path or primary_overlay_preview_path),
+            "combined_overlay_preview_path": (
+                str(combined_overlay_preview_path) if combined_overlay_preview_path else None
+            ),
+            "overlay_preview_paths": overlay_preview_paths,
             "original_preview_path": str(original_preview_path),
+            "segmented_preview_path": str(segmented_preview_path) if segmented_preview_path else None,
+            "video_keys": get_policy_video_keys(policy),
         }
         Path(args.analysis_result_path).write_text(json.dumps(result), encoding="utf-8")
         print("[ANALYZE] 완료", flush=True)
@@ -498,7 +626,7 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
 
         title = QtWidgets.QLabel("SignNav Attention Map")
         title.setObjectName("AppTitle")
-        subtitle = QtWidgets.QLabel("Choose a checkpoint and one RGB frame, then inspect action-head visual attention.")
+        subtitle = QtWidgets.QLabel("Choose a checkpoint and RGB inputs, then inspect action-head visual attention.")
         subtitle.setObjectName("Subtitle")
         subtitle.setWordWrap(True)
         side.addWidget(title)
@@ -516,6 +644,12 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
             "RGB image",
             "image file",
             [("Image file", self.select_image)],
+        )
+        self.segmented_image_edit = self._path_control(
+            inputs.layout(),
+            "Segmented image",
+            "optional segmented ego-view image",
+            [("Image file", self.select_segmented_image), ("Clear", self.clear_segmented_image)],
         )
         side.addWidget(inputs)
 
@@ -571,9 +705,11 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
         viewer_layout.setColumnStretch(0, 1)
         viewer_layout.setColumnStretch(1, 1)
         self.original_panel = ImagePanel("Original RGB", "No image selected")
+        self.segmented_panel = ImagePanel("Segmented RGB", "Optional segmented image")
         self.overlay_panel = ImagePanel("Attention Overlay", "Run inference to create overlay")
         viewer_layout.addWidget(self.original_panel, 0, 0)
-        viewer_layout.addWidget(self.overlay_panel, 0, 1)
+        viewer_layout.addWidget(self.segmented_panel, 0, 1)
+        viewer_layout.addWidget(self.overlay_panel, 1, 0, 1, 2)
         root.addWidget(viewer, 1)
 
     def _card(self, title: str):
@@ -698,6 +834,28 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
         self.status_label.setText("Ready. Run inference when you want to analyze this frame.")
         self._update_run_state()
 
+    def select_segmented_image(self):
+        selected, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Select segmented ego-view image",
+            default_initial_dir(self.segmented_image_edit.text(), DEFAULT_IMAGE_DIR),
+            "Image files (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)",
+        )
+        if not selected:
+            return
+        path = Path(selected).expanduser().resolve()
+        self.segmented_image_edit.setText(str(path))
+        self.segmented_panel.set_image(path)
+        self.overlay_panel.clear("Run inference to create combined attention overlay.")
+        self.status_label.setText("Segmented image selected.")
+        self._update_run_state()
+
+    def clear_segmented_image(self):
+        self.segmented_image_edit.clear()
+        self.segmented_panel.clear("Optional segmented image")
+        self.overlay_panel.clear("Run inference to create overlay")
+        self._update_run_state()
+
     def _update_run_state(self):
         has_inputs = bool(self.checkpoint_edit.text().strip()) and bool(self.image_edit.text().strip())
         self.run_button.setEnabled(has_inputs and self.analysis_proc is None)
@@ -717,6 +875,10 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
         if not Path(self.image_edit.text()).expanduser().exists():
             self._error("Invalid image", f"Image file does not exist:\n{self.image_edit.text()}")
             return
+        segmented_image_path = self.segmented_image_edit.text().strip()
+        if segmented_image_path and not Path(segmented_image_path).expanduser().exists():
+            self._error("Invalid segmented image", f"Image file does not exist:\n{segmented_image_path}")
+            return
 
         self.checkpoint_edit.setText(str(checkpoint_path))
         self.run_button.setEnabled(False)
@@ -724,6 +886,7 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
         self.log_text.clear()
         self.status_label.setText("Starting analysis subprocess...")
         self.original_panel.clear("Preparing image...")
+        self.segmented_panel.clear("Preparing segmented image..." if segmented_image_path else "No segmented image selected")
         self.overlay_panel.clear("Waiting for attention overlay...")
 
         tmpdir = Path(tempfile.mkdtemp(prefix="signnav_attention_"))
@@ -739,6 +902,7 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
             "--analyze-once",
             "--analysis-model-path", str(checkpoint_path),
             "--analysis-image-path", self.image_edit.text(),
+            "--analysis-segmented-image-path", segmented_image_path,
             "--analysis-prompt-version", str(prompt_version),
             "--analysis-target-area", str(target_area),
             "--analysis-speed", str(speed),
@@ -789,14 +953,25 @@ class AttentionMapWindow(QtWidgets.QMainWindow):
         try:
             result = json.loads(self.analysis_result_path.read_text(encoding="utf-8"))
             self.original_panel.set_image(result["original_preview_path"])
-            self.overlay_panel.set_image(result["overlay_preview_path"])
+            if result.get("segmented_preview_path"):
+                self.segmented_panel.set_image(result["segmented_preview_path"])
+            else:
+                self.segmented_panel.clear("No segmented image selected")
+
+            combined_overlay = result.get("combined_overlay_preview_path") or result.get("overlay_preview_path")
+            if combined_overlay:
+                self.overlay_panel.set_image(combined_overlay)
+            else:
+                self.overlay_panel.clear("No attention overlay for this model/input.")
+
             blocks = ", ".join(
-                f"{item['block']} ({item['tokens']}, {item['grid']})" for item in result["blocks"]
+                f"{item['block']} ({item['tokens']})" for item in result["blocks"]
             )
+            video_keys = ", ".join(result.get("video_keys", []))
             self.status_label.setText(
                 f"Done. linear={result['linear']:+.4f}, angular={result['angular']:+.4f}, "
                 f"action_step={result['action_step']}/{result['action_horizon'] - 1}\n"
-                f"blocks: {blocks}"
+                f"video_keys: {video_keys}\nblocks: {blocks}"
             )
         except Exception as exc:
             self._finish_error(str(exc))
@@ -825,6 +1000,7 @@ def main():
     parser.add_argument("--analyze-once", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--analysis-model-path", default="", help=argparse.SUPPRESS)
     parser.add_argument("--analysis-image-path", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--analysis-segmented-image-path", default="", help=argparse.SUPPRESS)
     parser.add_argument("--analysis-prompt-version", type=int, default=1, help=argparse.SUPPRESS)
     parser.add_argument("--analysis-target-area", type=int, default=1, help=argparse.SUPPRESS)
     parser.add_argument("--analysis-speed", type=float, default=0.0, help=argparse.SUPPRESS)

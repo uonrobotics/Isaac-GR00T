@@ -145,7 +145,7 @@ def main():
     parser.add_argument("--inference-port", type=int, default=INFERENCE_PORT)
     parser.add_argument("--cmd-host", default=CMD_HOST)
     parser.add_argument("--cmd-port", type=int, default=CMD_PORT)
-    parser.add_argument("--hz", type=float, default=10.0)
+    parser.add_argument("--hz", type=float, default=5.0) # ! inference frequency
     parser.add_argument("--no-reset", action="store_true")
     parser.add_argument("--reset-stop-repeats", type=int, default=RESET_STOP_REPEATS)
     parser.add_argument("--reset-stop-gap-sec", type=float, default=RESET_STOP_GAP_SEC)

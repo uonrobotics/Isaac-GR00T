@@ -10,9 +10,10 @@ PROMPT_VERSION="2"
 TARGET_AREA="1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+EXTRA_SERVER_ARGS=()
 
 usage() {
-    echo "Usage: ./3_start_gr00t_inference_server.sh /path/to/checkpoint [--device cuda:0] [--web-port 9090] [--prompt-version 1|2|3] [--target-area 1..12]" >&2
+    echo "Usage: ./3_start_gr00t_inference_server.sh /path/to/checkpoint [--device cuda:0] [--web-port 9090] [--prompt-version 1|2|3] [--target-area 1..12] [--enable-sam3-segmentation]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -31,6 +32,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --target-area)
             TARGET_AREA="${2:?missing value for --target-area}"
+            shift 2
+            ;;
+        --enable-sam3-segmentation|--disable-sam3-segmentation|--no-enable-sam3-segmentation)
+            EXTRA_SERVER_ARGS+=("$1")
+            shift
+            ;;
+        --segmented-view-key|--sam3-generator-path|--sam3-device|--sam3-prompt|--sam3-confidence|--sam3-min-mask-area|--sam3-checkpoint-path|--sam3-bpe-path|--sam3-output-kind|--sam3-merge-gap-ratio|--sam3-merge-gap-pixels|--sam3-bbox-padding-ratio|--sam3-bbox-padding-pixels|--sam3-bbox-line-thickness|--sam3-min-box-area-ratio|--sam3-min-box-width-ratio|--sam3-min-box-height-ratio)
+            EXTRA_SERVER_ARGS+=("$1" "${2:?missing value for $1}")
             shift 2
             ;;
         -h|--help)
@@ -81,9 +90,12 @@ uv run python gr00t_inference_server.py \
     --prompt-version "$PROMPT_VERSION" \
     --target-area "$TARGET_AREA" \
     --action-step 1 \
-    --modality-config-path "${REPO_ROOT}/examples/SignNav/modality_config_signnav.py"
+    --modality-config-path "${REPO_ROOT}/examples/SignNav/modality_config_signnav.py" \
+    "${EXTRA_SERVER_ARGS[@]}"
 
 
 
 
 # ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v1_lerobot_PROMPTv1/gr00t_n1d7-finetune+sim_v1_lerobot_PROMPTv1--20260803/checkpoint-80000/ --prompt-version 1
+
+# ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v1_lerobot_sign_bbox_overlay/gr00t_n1d7-finetune+sim_v1_lerobot_sign_bbox_overlay--20260805/checkpoint-80000/ --prompt-version 1 --enable-sam3-segmentation
