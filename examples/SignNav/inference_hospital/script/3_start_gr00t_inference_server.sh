@@ -97,5 +97,4 @@ uv run python gr00t_inference_server.py \
 
 
 # ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v1_lerobot_PROMPTv1/gr00t_n1d7-finetune+sim_v1_lerobot_PROMPTv1--20260803/checkpoint-80000/ --prompt-version 1
-
 # ./3_start_gr00t_inference_server.sh /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v1_lerobot_sign_bbox_overlay/gr00t_n1d7-finetune+sim_v1_lerobot_sign_bbox_overlay--20260805/checkpoint-80000/ --prompt-version 1 --enable-sam3-segmentation

@@ -89,6 +89,8 @@ MAP_PNG_PATH = "/nas/sujinkim/data/SignNav/_assets/hospital/hospital_occupancy_m
 MAP_YAML_PATH = ""
 WAYPOINTS_NPY_PATH = "/nas/sujinkim/data/SignNav/_assets/hospital/hospital_waypoint_graphs/waypoints.npy"
 ACTION_TRAJECTORY_ROOT = "/nas/sujinkim/data/SignNav/sim_v1/action"
+SPAWN_MODE_CURRENT = "current"
+SPAWN_MODE_EPISODE_ACTION_START = "episode_action_start"
 ROBOT_REL_PATH = "/Isaac/Samples/ROS2/Robots/Nova_Carter_ROS.usd"
 
 ROBOT_ROOT_PRIM_PATH = "/World/Nova_Carter_ROS"
@@ -105,6 +107,10 @@ ROBOT_CAMERA_ROS_GRAPH_PATHS = [
     "/World/Nova_Carter_ROS/right_owl",
 ]
 DEFAULT_Z = 0.0
+DEFAULT_FALLBACK_GROUND_Z = 0.0
+DEFAULT_FALLBACK_GROUND_SIZE = 200.0
+FALLBACK_GROUND_PRIM_PATH = "/World/SignNavFallbackGround"
+DEFAULT_FLOOR_COLLISION_KEYWORDS = "floor,ground,terrain,concrete"
 CAMERA_SETTLE_FRAMES = 0
 CAMERA_MAX_WAIT_FRAMES = 8
 CAMERA_MIN_VALID_MEAN = 1.0
@@ -417,6 +423,105 @@ def add_dome_light(stage):
     dome.CreateIntensityAttr(1000)
 
 
+def add_fallback_ground_collider(stage, z: float, size: float):
+    """Add a simple static floor collider for USDs that contain visual floors only."""
+    prim = stage.GetPrimAtPath(FALLBACK_GROUND_PRIM_PATH)
+    if prim.IsValid():
+        return
+
+    thickness = 0.10
+    cube = UsdGeom.Cube.Define(stage, FALLBACK_GROUND_PRIM_PATH)
+    cube.CreateSizeAttr(1.0)
+    cube.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, float(z) - thickness * 0.5))
+    cube.AddScaleOp().Set(Gf.Vec3f(float(size), float(size), thickness))
+    cube.CreateVisibilityAttr().Set(UsdGeom.Tokens.invisible)
+    UsdPhysics.CollisionAPI.Apply(cube.GetPrim())
+    print(
+        "[SIM SERVER] added fallback static ground collider "
+        f"path={FALLBACK_GROUND_PRIM_PATH} z={z:.3f} size={size:.1f}"
+    )
+
+
+def _iter_target_collision_prims(root_prim):
+    """Yield mesh-like prims under root_prim that can receive collision schemas."""
+    if not root_prim.IsValid():
+        return
+    for prim in Usd.PrimRange(root_prim):
+        if prim.IsA(UsdGeom.Mesh):
+            yield prim
+
+
+def _apply_static_mesh_collision(prim, approximation: str) -> bool:
+    if not prim.IsValid() or not prim.IsA(UsdGeom.Mesh):
+        return False
+    try:
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            UsdPhysics.CollisionAPI.Apply(prim)
+        if hasattr(UsdPhysics, "MeshCollisionAPI"):
+            mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
+            mesh_collision.CreateApproximationAttr().Set(approximation)
+    except Exception as exc:
+        print(f"[SIM SERVER] failed to add floor collision: {prim.GetPath()} ({exc})")
+        return False
+    return True
+
+
+def add_collision_to_existing_floor(
+    stage,
+    prim_paths: list[str],
+    auto_keywords: list[str],
+    approximation: str = "none",
+) -> int:
+    """Add collision to existing floor meshes instead of creating a second floor."""
+    roots = []
+    seen = set()
+    for prim_path in prim_paths:
+        prim_path = prim_path.strip()
+        if not prim_path:
+            continue
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim.IsValid():
+            print(f"[SIM SERVER] floor collision prim not found: {prim_path}")
+            continue
+        path = str(prim.GetPath())
+        if path not in seen:
+            seen.add(path)
+            roots.append(prim)
+
+    keywords = [k.strip().lower() for k in auto_keywords if k.strip()]
+    if not roots and keywords:
+        for prim in Usd.PrimRange(stage.GetPseudoRoot()):
+            name = prim.GetName().lower()
+            path = str(prim.GetPath()).lower()
+            if any(keyword in name or keyword in path for keyword in keywords):
+                prim_path = str(prim.GetPath())
+                if prim_path not in seen:
+                    seen.add(prim_path)
+                    roots.append(prim)
+
+    applied = 0
+    touched_paths = []
+    for root in roots:
+        for prim in _iter_target_collision_prims(root):
+            if _apply_static_mesh_collision(prim, approximation):
+                applied += 1
+                if len(touched_paths) < 12:
+                    touched_paths.append(str(prim.GetPath()))
+
+    print(
+        "[SIM SERVER] existing floor collision "
+        f"roots={len(roots)} meshes={applied} approximation={approximation}"
+    )
+    for path in touched_paths:
+        print(f"[SIM SERVER]   collision mesh: {path}")
+    if applied == 0:
+        print(
+            "[SIM SERVER] no existing floor meshes received collision; "
+            "set FLOOR_COLLISION_PRIM_PATHS to the USD floor prim path"
+        )
+    return applied
+
+
 def get_valid_prim(stage, prim_path: str, name: str):
     prim = stage.GetPrimAtPath(prim_path)
     if not prim.IsValid():
@@ -542,53 +647,36 @@ def load_spawn_waypoints(path: str) -> np.ndarray | None:
 
 
 def extract_first_trajectory_sim_pose(json_path: str) -> dict | None:
-    """Extract trajectory[0].sim_pose without loading the full trajectory JSON."""
-    in_trajectory = False
-    collecting = False
-    pose_lines = []
-    brace_balance = 0
-
-    with open(json_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if not in_trajectory:
-                if '"trajectory"' in line:
-                    in_trajectory = True
-                continue
-
-            if not collecting:
-                if '"sim_pose"' not in line:
-                    continue
-                if "null" in line:
-                    return None
-                start = line.find("{")
-                if start < 0:
-                    continue
-                fragment = line[start:]
-                pose_lines = [fragment]
-                brace_balance = fragment.count("{") - fragment.count("}")
-                collecting = True
-                if brace_balance <= 0:
-                    break
-                continue
-
-            pose_lines.append(line)
-            brace_balance += line.count("{") - line.count("}")
-            if brace_balance <= 0:
-                break
-
-    if not pose_lines:
-        return None
-    text = "".join(pose_lines)
-    end = text.rfind("}")
-    if end >= 0:
-        text = text[: end + 1]
+    """Extract the robot pose recorded at the first action frame."""
     try:
-        pose = json.loads(text)
+        with open(json_path, "r", encoding="utf-8") as f:
+            episode = json.load(f)
     except json.JSONDecodeError:
         return None
+
+    trajectory = episode.get("trajectory") or []
+    if not trajectory:
+        return None
+
+    first_frame = trajectory[0]
+    pose = first_frame.get("sim_pose") or episode.get("initial_pose") or {}
     if not all(k in pose for k in ("x", "y", "yaw")):
         return None
-    return {"x": float(pose["x"]), "y": float(pose["y"]), "yaw": float(pose["yaw"])}
+
+    # sim_pose is usually planar. For USD placement, keep the recorded robot base
+    # height from odometry if present; otherwise reset falls back to --spawn-z.
+    odom_position = (
+        first_frame.get("odometry", {})
+        .get("pose", {})
+        .get("position", {})
+    )
+    z = pose.get("z", odom_position.get("z"))
+    return {
+        "x": float(pose["x"]),
+        "y": float(pose["y"]),
+        "yaw": float(pose["yaw"]),
+        "z": None if z is None else float(z),
+    }
 
 
 def load_trajectory_spawn_poses(root: str) -> list[dict]:
@@ -761,6 +849,21 @@ class IsaacSimServer:
         viewport_renderer: str = "rtx",
         camera_renderer: str = "pathtracing",
         camera_pathtracing_spp: int = 16,
+        env_usd_path: str = ENV_USD_PATH,
+        occupancy_map_png_path: str = MAP_PNG_PATH,
+        occupancy_map_yaml_path: str = MAP_YAML_PATH,
+        spawn_mode: str = SPAWN_MODE_CURRENT,
+        action_trajectory_root: str = ACTION_TRAJECTORY_ROOT,
+        spawn_waypoints_path: str = WAYPOINTS_NPY_PATH,
+        spawn_z: float = DEFAULT_Z,
+        use_recorded_spawn_z: bool = False,
+        add_floor_collision: bool = False,
+        floor_collision_prim_paths: str = "",
+        floor_collision_auto_keywords: str = DEFAULT_FLOOR_COLLISION_KEYWORDS,
+        floor_collision_approximation: str = "none",
+        add_fallback_ground: bool = False,
+        fallback_ground_z: float = DEFAULT_FALLBACK_GROUND_Z,
+        fallback_ground_size: float = DEFAULT_FALLBACK_GROUND_SIZE,
     ):
         self.stage = None
         self.timeline = None
@@ -771,6 +874,21 @@ class IsaacSimServer:
         self.viewport_renderer = viewport_renderer
         self.camera_renderer = camera_renderer
         self.camera_pathtracing_spp = camera_pathtracing_spp
+        self.env_usd_path = env_usd_path
+        self.occupancy_map_png_path = occupancy_map_png_path
+        self.occupancy_map_yaml_path = occupancy_map_yaml_path
+        self.spawn_mode = spawn_mode
+        self.action_trajectory_root = action_trajectory_root
+        self.spawn_waypoints_path = spawn_waypoints_path
+        self.spawn_z = float(spawn_z)
+        self.use_recorded_spawn_z = use_recorded_spawn_z
+        self.add_floor_collision = add_floor_collision
+        self.floor_collision_prim_paths = floor_collision_prim_paths
+        self.floor_collision_auto_keywords = floor_collision_auto_keywords
+        self.floor_collision_approximation = floor_collision_approximation
+        self.add_fallback_ground = add_fallback_ground
+        self.fallback_ground_z = float(fallback_ground_z)
+        self.fallback_ground_size = float(fallback_ground_size)
         self.camera_mode = camera_mode
         self.camera_preset = camera_preset
         self.camera_layout = camera_layout
@@ -793,13 +911,18 @@ class IsaacSimServer:
         )
         self.camera_cfg = self.camera_configs[self.primary_camera_view]
         self.spawn_region = None
-        self.trajectory_spawns = load_trajectory_spawn_poses(ACTION_TRAJECTORY_ROOT)
-        self.spawn_waypoints = load_spawn_waypoints(WAYPOINTS_NPY_PATH)
+        self.trajectory_spawns = load_trajectory_spawn_poses(self.action_trajectory_root)
+        self.spawn_waypoints = load_spawn_waypoints(self.spawn_waypoints_path)
         self.occ_map = None
-        if MAP_PNG_PATH and MAP_YAML_PATH and os.path.exists(MAP_PNG_PATH) and os.path.exists(MAP_YAML_PATH):
+        if (
+            self.occupancy_map_png_path
+            and self.occupancy_map_yaml_path
+            and os.path.exists(self.occupancy_map_png_path)
+            and os.path.exists(self.occupancy_map_yaml_path)
+        ):
             self.occ_map = OccupancyDistanceMap(
-                MAP_PNG_PATH,
-                MAP_YAML_PATH,
+                self.occupancy_map_png_path,
+                self.occupancy_map_yaml_path,
             )
         else:
             print("[SIM SERVER] occupancy yaml unavailable; random reset uses spawn region bbox only")
@@ -809,6 +932,7 @@ class IsaacSimServer:
         self._disable_replicator_capture()
         self._create_stage_once()
         self._load_env_and_robot_once()
+        self._preplace_robot_before_play()
         self._disable_replicator_capture()
         self._start_simulation_once()
         self._disable_replicator_capture()
@@ -840,9 +964,9 @@ class IsaacSimServer:
             set_active_viewport_renderer("rtx", "RaytracedLighting", quiet=quiet)
 
     def _create_stage_once(self):
-        if not os.path.exists(ENV_USD_PATH):
-            raise FileNotFoundError(f"Environment USD not found: {ENV_USD_PATH}")
-        omni.usd.get_context().open_stage(ENV_USD_PATH)
+        if not os.path.exists(self.env_usd_path):
+            raise FileNotFoundError(f"Environment USD not found: {self.env_usd_path}")
+        omni.usd.get_context().open_stage(self.env_usd_path)
         for _ in range(240):
             simulation_app.update()
             if not is_stage_loading():
@@ -851,7 +975,20 @@ class IsaacSimServer:
         UsdGeom.SetStageMetersPerUnit(self.stage, 1.0)
         add_physics_scene(self.stage)
         add_dome_light(self.stage)
-        print(f"[SIM SERVER] opened env stage: {ENV_USD_PATH}")
+        if self.add_floor_collision:
+            add_collision_to_existing_floor(
+                self.stage,
+                prim_paths=self.floor_collision_prim_paths.split(","),
+                auto_keywords=self.floor_collision_auto_keywords.split(","),
+                approximation=self.floor_collision_approximation,
+            )
+        if self.add_fallback_ground:
+            add_fallback_ground_collider(
+                self.stage,
+                z=self.fallback_ground_z,
+                size=self.fallback_ground_size,
+            )
+        print(f"[SIM SERVER] opened env stage: {self.env_usd_path}")
 
     def _load_env_and_robot_once(self):
         assets_root = get_assets_root_path()
@@ -878,6 +1015,32 @@ class IsaacSimServer:
             )
         else:
             print(f"[SIM SERVER] spawn_region={self.spawn_region}")
+
+    def _preplace_robot_before_play(self):
+        robot_prim = self.stage.GetPrimAtPath(ROBOT_ROOT_PRIM_PATH)
+        if not robot_prim.IsValid():
+            return
+        try:
+            if self.spawn_mode == SPAWN_MODE_EPISODE_ACTION_START:
+                x, y, yaw, _ = self._sample_episode_action_start_spawn()
+            elif self.spawn_mode == SPAWN_MODE_CURRENT:
+                x, y, yaw, _ = self._sample_current_spawn()
+            else:
+                return
+        except Exception as exc:
+            print(f"[SIM SERVER] initial robot pre-place skipped: {exc}")
+            return
+
+        # Do this before timeline.play(): the Carter USD default pose may be inside
+        # warehouse geometry, which can make the articulation explode before the
+        # first user-triggered reset ever happens.
+        self.set_xform_pose(robot_prim, [x, y, self.spawn_z], self.yaw_to_quat_xyzw(yaw))
+        for _ in range(5):
+            simulation_app.update()
+        print(
+            "[SIM SERVER] initial robot pre-place before physics "
+            f"x={x:.3f} y={y:.3f} z={self.spawn_z:.3f} yaw={yaw:.3f}"
+        )
 
     def _deactivate_robot_camera_ros_graphs(self):
         disabled = []
@@ -1242,11 +1405,19 @@ class IsaacSimServer:
         x, y, yaw = get_world_xy_yaw(self.stage, ROBOT_BODY_PRIM_PATH)
         return {"x": x, "y": y, "yaw": yaw}
 
-    def reset_robot_pose(self, x: float, y: float, yaw: float, label: str = "requested"):
+    def reset_robot_pose(
+        self,
+        x: float,
+        y: float,
+        yaw: float,
+        z: float | None = None,
+        label: str = "requested",
+    ):
+        spawn_z = self.spawn_z if z is None else float(z)
         quat_wxyz = quat_wxyz_from_yaw(yaw)
         try:
             self.robot.set_world_pose(
-                position=np.array([x, y, DEFAULT_Z], dtype=np.float32),
+                position=np.array([x, y, spawn_z], dtype=np.float32),
                 orientation=quat_wxyz,
             )
             self.robot.set_linear_velocity(np.zeros(3, dtype=np.float32))
@@ -1255,39 +1426,75 @@ class IsaacSimServer:
             print(f"[SIM SERVER] articulation reset failed, using xform fallback: {exc}")
             quat_xyzw = [0.0, 0.0, math.sin(yaw * 0.5), math.cos(yaw * 0.5)]
             robot_prim = self.stage.GetPrimAtPath(ROBOT_ROOT_PRIM_PATH)
-            self.set_xform_pose(robot_prim, [x, y, DEFAULT_Z], quat_xyzw)
+            self.set_xform_pose(robot_prim, [x, y, spawn_z], quat_xyzw)
         for _ in range(120):
             simulation_app.update()
         pose = self.get_pose()
         print(
-            f"[SIM SERVER] reset pose {label}=({x:.2f},{y:.2f},{yaw:.2f}) "
+            f"[SIM SERVER] reset pose {label}=({x:.2f},{y:.2f},{spawn_z:.3f},{yaw:.2f}) "
             f"actual=({pose['x']:.2f},{pose['y']:.2f},{pose['yaw']:.2f})"
         )
         return pose
 
-    def reset_robot_random_pose(self):
+    def _sample_episode_action_start_spawn(self):
+        if not self.trajectory_spawns:
+            raise RuntimeError(
+                "spawn_mode='episode_action_start' requires trajectory spawn poses. "
+                f"Check --action-trajectory-root: {self.action_trajectory_root}"
+            )
+        idx = int(np.random.randint(0, len(self.trajectory_spawns)))
+        spawn = self.trajectory_spawns[idx]
+        x = float(spawn["x"])
+        y = float(spawn["y"])
+        yaw = float(spawn["yaw"])
+        z = spawn.get("z")
+        z = float(z) if self.use_recorded_spawn_z and z is not None else self.spawn_z
+        print("\n" + "=" * 88)
+        print("  SIGNNAV RANDOM RESPAWN FROM EPISODE ACTION START")
+        print(
+            f"  source: {spawn['goal_name']}/{spawn['episode_id']} "
+            f"({spawn['path']})"
+        )
+        print(f"  pose:   x={x:.3f} y={y:.3f} z={z:.3f} yaw={yaw:.3f} rad")
+        print("=" * 88 + "\n")
+        return x, y, yaw, z
+
+    def _sample_current_spawn(self):
         if self.trajectory_spawns:
             idx = int(np.random.randint(0, len(self.trajectory_spawns)))
             spawn = self.trajectory_spawns[idx]
             x = float(spawn["x"])
             y = float(spawn["y"])
             yaw = float(spawn["yaw"])
+            z = spawn.get("z")
+            z = float(z) if self.use_recorded_spawn_z and z is not None else self.spawn_z
             print("\n" + "=" * 88)
             print("  SIGNNAV RANDOM RESPAWN FROM RECORDED TRAJECTORY")
             print(
                 f"  source: {spawn['goal_name']}/{spawn['episode_id']} "
                 f"({spawn['path']})"
             )
-            print(f"  pose:   x={x:.3f} y={y:.3f} yaw={yaw:.3f} rad")
+            print(f"  pose:   x={x:.3f} y={y:.3f} z={z:.3f} yaw={yaw:.3f} rad")
             print("=" * 88 + "\n")
         elif self.spawn_waypoints is not None and len(self.spawn_waypoints) > 0:
             idx = int(np.random.randint(0, len(self.spawn_waypoints)))
             x, y = [float(v) for v in self.spawn_waypoints[idx]]
             yaw = float(np.random.uniform(-math.pi, math.pi))
+            z = self.spawn_z
             print(f"[SIM SERVER] waypoint random spawn idx={idx} x={x:.2f} y={y:.2f} yaw={yaw:.2f}")
         else:
             x, y, yaw = sample_conditioned_spawn(self.spawn_region, self.occ_map)
-        return self.reset_robot_pose(x, y, yaw, label="random")
+            z = self.spawn_z
+        return x, y, yaw, z
+
+    def reset_robot_random_pose(self):
+        if self.spawn_mode == SPAWN_MODE_EPISODE_ACTION_START:
+            x, y, yaw, z = self._sample_episode_action_start_spawn()
+        elif self.spawn_mode == SPAWN_MODE_CURRENT:
+            x, y, yaw, z = self._sample_current_spawn()
+        else:
+            raise ValueError(f"Unknown spawn_mode: {self.spawn_mode}")
+        return self.reset_robot_pose(x, y, yaw, z=z, label="random")
 
 
 def main():
@@ -1359,6 +1566,95 @@ def main():
         default=16,
         help="PathTracing samples per pixel for camera captures.",
     )
+    parser.add_argument(
+        "--env-usd-path",
+        default=ENV_USD_PATH,
+        help="Environment USD stage to open.",
+    )
+    parser.add_argument(
+        "--occupancy-map-png-path",
+        default=MAP_PNG_PATH,
+        help="Occupancy map image used to validate random spawn samples.",
+    )
+    parser.add_argument(
+        "--occupancy-map-yaml-path",
+        default=MAP_YAML_PATH,
+        help="Occupancy map yaml with resolution/origin. Leave empty to disable occupancy checks.",
+    )
+    parser.add_argument(
+        "--spawn-mode",
+        choices=(SPAWN_MODE_CURRENT, SPAWN_MODE_EPISODE_ACTION_START),
+        default=SPAWN_MODE_CURRENT,
+        help=(
+            "Reset spawn source. 'current' preserves the existing random reset priority; "
+            "'episode_action_start' samples the first sim_pose from recorded action episodes."
+        ),
+    )
+    parser.add_argument(
+        "--action-trajectory-root",
+        default=ACTION_TRAJECTORY_ROOT,
+        help="Root containing per-goal episode action JSON files for episode_action_start spawns.",
+    )
+    parser.add_argument(
+        "--spawn-waypoints-path",
+        default=WAYPOINTS_NPY_PATH,
+        help="Waypoint .npy used by the current random spawn fallback.",
+    )
+    parser.add_argument(
+        "--spawn-z",
+        type=float,
+        default=DEFAULT_Z,
+        help=(
+            "Fallback robot spawn height. Episode action spawns use the recorded "
+            "first-frame z when available, and use this value otherwise."
+        ),
+    )
+    parser.add_argument(
+        "--use-recorded-spawn-z",
+        action="store_true",
+        help="Use first-frame recorded z from action JSONs instead of --spawn-z.",
+    )
+    parser.add_argument(
+        "--add-floor-collision",
+        action="store_true",
+        help="Add physics collision to existing USD floor meshes before spawning the robot.",
+    )
+    parser.add_argument(
+        "--floor-collision-prim-paths",
+        default="",
+        help=(
+            "Comma-separated USD prim paths to treat as floor roots. "
+            "If empty, the server searches by --floor-collision-auto-keywords."
+        ),
+    )
+    parser.add_argument(
+        "--floor-collision-auto-keywords",
+        default=DEFAULT_FLOOR_COLLISION_KEYWORDS,
+        help="Comma-separated lower-case name/path keywords used to auto-find floor prims.",
+    )
+    parser.add_argument(
+        "--floor-collision-approximation",
+        default="none",
+        choices=["none", "convexHull", "convexDecomposition", "meshSimplification"],
+        help="Mesh collision approximation applied to existing floor meshes.",
+    )
+    parser.add_argument(
+        "--add-fallback-ground",
+        action="store_true",
+        help="Add an invisible static floor collider for USDs whose visual floor has no physics.",
+    )
+    parser.add_argument(
+        "--fallback-ground-z",
+        type=float,
+        default=DEFAULT_FALLBACK_GROUND_Z,
+        help="Top surface height of the fallback ground collider.",
+    )
+    parser.add_argument(
+        "--fallback-ground-size",
+        type=float,
+        default=DEFAULT_FALLBACK_GROUND_SIZE,
+        help="Width/depth of the fallback ground collider in meters.",
+    )
     args = parser.parse_args()
 
     server = JsonSocketServer(host="0.0.0.0", port=8765)
@@ -1372,6 +1668,21 @@ def main():
         viewport_renderer=args.viewport_renderer,
         camera_renderer=args.camera_renderer,
         camera_pathtracing_spp=args.camera_pathtracing_spp,
+        env_usd_path=args.env_usd_path,
+        occupancy_map_png_path=args.occupancy_map_png_path,
+        occupancy_map_yaml_path=args.occupancy_map_yaml_path,
+        spawn_mode=args.spawn_mode,
+        action_trajectory_root=args.action_trajectory_root,
+        spawn_waypoints_path=args.spawn_waypoints_path,
+        spawn_z=args.spawn_z,
+        use_recorded_spawn_z=args.use_recorded_spawn_z,
+        add_floor_collision=args.add_floor_collision,
+        floor_collision_prim_paths=args.floor_collision_prim_paths,
+        floor_collision_auto_keywords=args.floor_collision_auto_keywords,
+        floor_collision_approximation=args.floor_collision_approximation,
+        add_fallback_ground=args.add_fallback_ground,
+        fallback_ground_z=args.fallback_ground_z,
+        fallback_ground_size=args.fallback_ground_size,
     )
     sim.setup()
 
@@ -1413,6 +1724,7 @@ def main():
                         float(msg["x"]),
                         float(msg["y"]),
                         float(msg["yaw"]),
+                        z=None if "z" not in msg else float(msg["z"]),
                         label=str(msg.get("label", "fixed")),
                     )
                     ok = server.send_message({"ok": True, "pose": pose})
