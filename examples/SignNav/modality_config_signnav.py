@@ -19,7 +19,11 @@ sign_nav_config = {
         delta_indices=[0],
         modality_keys=[
             "speed",
-            "bbox_normalized_xyxy",
+            "bbox_status",
+            "bbox_x1",
+            "bbox_y1",
+            "bbox_x2",
+            "bbox_y2",
         ],
     ),
 
