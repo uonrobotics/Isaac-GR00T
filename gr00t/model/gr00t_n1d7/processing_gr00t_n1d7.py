@@ -118,6 +118,8 @@ def _build_tag_to_projector_index(groups: dict[int, set[str]]) -> dict[str, int]
 EMBODIMENT_TAG_TO_PROJECTOR_INDEX: dict[str, int] = _build_tag_to_projector_index(
     _PROJECTOR_INDEX_GROUPS
 )
+SIGN_GROUNDING_COLUMNS = ("gt_sign_bbox_cxcywh", "gt_sign_status")
+SIGN_QUERY_MARKER = "Target sign:"
 
 
 def build_processor(model_name: str, transformers_loading_kwargs: dict) -> Qwen3VLProcessor:
@@ -170,9 +172,58 @@ class Gr00tN1d7DataCollator:
         self.model_type = model_type
         self.model_name = model_name
 
+    def _find_sign_query_index(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        rendered_text: str | None = None,
+    ) -> int:
+        # Find the prompt token that will act as the SignNav query. The model
+        # later reads the hidden state at this index for bbox/status prediction.
+        marker_ids = self.processor.tokenizer(
+            SIGN_QUERY_MARKER,
+            add_special_tokens=False,
+            return_tensors="pt",
+        )["input_ids"][0]
+        marker_ids = marker_ids.to(input_ids.device)
+
+        # Ignore padding while searching, but keep the original token positions so
+        # the returned index still points into the padded model input.
+        valid_positions = attention_mask.nonzero(as_tuple=False).flatten()
+        unpadded_ids = input_ids[valid_positions]
+        marker_len = marker_ids.numel()
+        if marker_len == 0 or unpadded_ids.numel() < marker_len:
+            raise ValueError(f"Could not tokenize sign query marker {SIGN_QUERY_MARKER!r}")
+
+        # Locate the "Target sign:" marker in token space.
+        matches = (
+            unpadded_ids.unfold(0, marker_len, 1) == marker_ids.unsqueeze(0)
+        ).all(dim=1).nonzero(as_tuple=False)
+        if matches.numel() > 0:
+            # Use the last marker and return its final token as the query point.
+            marker_start = int(matches[-1].item())
+            return int(valid_positions[marker_start + marker_len - 1].item())
+
+        if rendered_text is not None and SIGN_QUERY_MARKER in rendered_text:
+            # Fallback for tokenizers that split the marker differently depending
+            # on surrounding whitespace in the full chat-template text.
+            marker_end = rendered_text.rindex(SIGN_QUERY_MARKER) + len(SIGN_QUERY_MARKER)
+            prefix_ids = self.processor.tokenizer(
+                rendered_text[:marker_end],
+                add_special_tokens=False,
+                return_tensors="pt",
+            )["input_ids"][0]
+            return int(valid_positions[0].item() + prefix_ids.numel() - 1)
+
+        raise ValueError(
+            f"Sign grounding labels are present but {SIGN_QUERY_MARKER!r} was not found "
+            "in the tokenized prompt."
+        )
+
     def __call__(self, features: list[Dict[str, Any]]) -> BatchFeature:
         batch = {}
         keys = list(set().union(*(elem.keys() for elem in features)))
+        vlm_texts = None
 
         for key in keys:
             values = [elem[key] for elem in features if key in elem]
@@ -186,6 +237,7 @@ class Gr00tN1d7DataCollator:
                     text_list += curr_text_list
                     curr_image_inputs = v["images"]
                     image_inputs += curr_image_inputs
+                vlm_texts = text_list
 
                 vlm_inputs = self.processor(
                     text=text_list,
@@ -205,6 +257,20 @@ class Gr00tN1d7DataCollator:
             else:
                 # state, state_mask, action and action_mask - stack to form batch dimension
                 batch[key] = torch.from_numpy(np.stack(values))
+
+        has_grounding_labels = any(key in batch for key in SIGN_GROUNDING_COLUMNS)
+        if has_grounding_labels and "sign_query_index" not in batch:
+            batch["sign_query_index"] = torch.tensor(
+                [
+                    self._find_sign_query_index(input_ids, attention_mask, rendered_text)
+                    for input_ids, attention_mask, rendered_text in zip(
+                        batch["input_ids"],
+                        batch["attention_mask"],
+                        vlm_texts or [None] * len(batch["input_ids"]),
+                    )
+                ],
+                dtype=torch.long,
+            )
         return BatchFeature(data={"inputs": batch})
 
     def __str__(self):
@@ -586,6 +652,7 @@ class Gr00tN1d7Processor(BaseProcessor):
         embodiment_tag = content.embodiment
         action_data = content.actions
         state_data = content.states
+        metadata = content.metadata or {}
 
         # Use StateActionProcessor to handle relative conversion and normalization
         norm_state_dict, normalized_actions = self.state_action_processor.apply(
@@ -679,6 +746,10 @@ class Gr00tN1d7Processor(BaseProcessor):
             language = re.sub(r"[^\w\s]", "", language)
         else:
             language = content.text
+        if any(key in metadata for key in SIGN_GROUNDING_COLUMNS) and (
+            SIGN_QUERY_MARKER.lower() not in language.lower()
+        ):
+            language = f"{language}\n{SIGN_QUERY_MARKER}"
 
         vlm_inputs = self._get_vlm_inputs(
             image_keys=image_keys,
@@ -697,6 +768,14 @@ class Gr00tN1d7Processor(BaseProcessor):
         transformed_inputs.update(vlm_inputs)
         if action_mask is not None:
             transformed_inputs["action_mask"] = action_mask
+        if "gt_sign_bbox_cxcywh" in metadata:
+            transformed_inputs["gt_sign_bbox_cxcywh"] = np.asarray(
+                metadata["gt_sign_bbox_cxcywh"], dtype=np.float32
+            )
+        if "gt_sign_status" in metadata:
+            transformed_inputs["gt_sign_status"] = np.asarray(
+                metadata["gt_sign_status"], dtype=np.int64
+            )
         transformed_inputs["embodiment_id"] = self.embodiment_id_mapping[embodiment_tag.value]
         return transformed_inputs
 

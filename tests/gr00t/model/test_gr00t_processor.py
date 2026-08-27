@@ -30,6 +30,7 @@ from gr00t.data.types import MessageType, VLAStepData
 import numpy as np
 from PIL import Image
 import pytest
+import torch
 
 
 FIXTURE_DIR = Path(__file__).parent.parent.parent / "fixtures" / "processor_config"
@@ -179,6 +180,84 @@ class TestProcessorCall:
         messages = [{"type": MessageType.EPISODE_STEP.value, "content": step_data}]
         result = processor(messages)
         assert isinstance(result["embodiment_id"], (int, np.integer))
+
+    def test_sign_grounding_metadata_is_forwarded(self, processor, proc_config):
+        step_data = _make_step_data(proc_config)
+        step_data.metadata = {
+            "gt_sign_bbox_cxcywh": np.array([0.5, 0.5, 0.2, 0.2], dtype=np.float32),
+            "gt_sign_status": 1,
+        }
+        messages = [{"type": MessageType.EPISODE_STEP.value, "content": step_data}]
+
+        result = processor(messages)
+
+        np.testing.assert_allclose(result["gt_sign_bbox_cxcywh"], [0.5, 0.5, 0.2, 0.2])
+        assert result["gt_sign_status"].item() == 1
+        text_content = result["vlm_content"]["conversation"][0]["content"][-1]["text"]
+        assert "Target sign:" in text_content
+
+
+def test_data_collator_adds_sign_query_index():
+    from gr00t.model.gr00t_n1d7.processing_gr00t_n1d7 import Gr00tN1d7DataCollator
+
+    class FakeTokenizer:
+        padding_side = "left"
+
+        def __call__(self, text, add_special_tokens=False, return_tensors=None):
+            assert text == "Target sign:"
+            return {"input_ids": torch.tensor([[10, 11]], dtype=torch.long)}
+
+    class FakeProcessor:
+        tokenizer = FakeTokenizer()
+
+        def __call__(self, text, images, return_tensors=None, padding=True):
+            return {
+                "input_ids": torch.tensor(
+                    [
+                        [0, 5, 10, 11, 7],
+                        [8, 10, 11, 9, 0],
+                    ],
+                    dtype=torch.long,
+                ),
+                "attention_mask": torch.tensor(
+                    [
+                        [0, 1, 1, 1, 1],
+                        [1, 1, 1, 1, 0],
+                    ],
+                    dtype=torch.long,
+                ),
+            }
+
+    with patch(
+        "gr00t.model.gr00t_n1d7.processing_gr00t_n1d7.build_processor",
+        return_value=FakeProcessor(),
+    ):
+        collator = Gr00tN1d7DataCollator("fake-model")
+
+    batch = collator(
+        [
+            {
+                "vlm_content": {
+                    "text": "sample 1",
+                    "images": [np.zeros((2, 2, 3), dtype=np.uint8)],
+                },
+                "gt_sign_bbox_cxcywh": np.array([0.5, 0.5, 0.2, 0.2], dtype=np.float32),
+                "gt_sign_status": np.array(1, dtype=np.int64),
+            },
+            {
+                "vlm_content": {
+                    "text": "sample 2",
+                    "images": [np.zeros((2, 2, 3), dtype=np.uint8)],
+                },
+                "gt_sign_bbox_cxcywh": np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32),
+                "gt_sign_status": np.array(0, dtype=np.int64),
+            },
+        ]
+    )["inputs"]
+
+    assert batch["sign_query_index"].tolist() == [3, 2]
+    assert batch["gt_sign_bbox_cxcywh"].shape == (2, 4)
+    assert batch["gt_sign_status"].tolist() == [1, 0]
 
 
 class TestProcessorVLMInputs:

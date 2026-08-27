@@ -30,6 +30,11 @@ from gr00t.model.modules.embodiment_conditioned_mlp import (
     CategorySpecificMLP,
     MultiEmbodimentActionEncoder,
 )
+from gr00t.model.gr00t_n1d7.sign_grounding import (
+    GroundedTokenFusion,
+    SignGroundingHead,
+    compute_sign_grounding_losses,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -540,8 +545,22 @@ class Gr00tN1d7(PreTrainedModel):
             transformers_loading_kwargs=transformers_loading_kwargs,
         )
 
-        # Initialize action head
+        # Original GR00T action path: Cosmos/Qwen VLM tokens condition the
+        # flow-matching DiT action head through cross-attention.
         self.action_head = Gr00tN1d7ActionHead(config)
+        # Optional SignNav grounding path. It is dormant for normal GR00T
+        # batches, and turns on only when the batch provides ``sign_query_index``.
+        # The head supervises the selected sign token with bbox/status losses.
+        self.sign_grounding_head = SignGroundingHead(
+            vlm_dim=config.backbone_embedding_dim,
+            num_status_classes=config.sign_grounding_num_status_classes,
+        )
+        # This produces the extra cross-attention memory token consumed by the
+        # action DiT: concat(Cosmos layer-12 tokens, grounded sign token).
+        self.grounded_token_fusion = GroundedTokenFusion(
+            vlm_dim=config.backbone_embedding_dim,
+            condition_dim=config.backbone_embedding_dim,
+        )
         from .processing_gr00t_n1d7 import Gr00tN1d7DataCollator
 
         self.collator = Gr00tN1d7DataCollator(
@@ -582,6 +601,144 @@ class Gr00tN1d7(PreTrainedModel):
 
         return backbone_inputs, action_inputs
 
+    @staticmethod
+    def _optional_tensor(inputs: BatchFeature, *keys: str) -> torch.Tensor | None:
+        for key in keys:
+            if key in inputs:
+                return inputs[key]
+        return None
+
+    def _compute_sign_grounding(
+        self, backbone_outputs: BatchFeature, action_inputs: BatchFeature
+    ) -> BatchFeature | None:
+        # Grounding is keyed by ``sign_query_index`` so existing action datasets
+        # keep the exact old forward path. Once the SignNav dataset is ready, its
+        # processor/collator only needs to add this index plus optional labels.
+        if not self.config.enable_sign_grounding or "sign_query_index" not in action_inputs:
+            return None
+
+        query_index = action_inputs.sign_query_index.long()
+        if query_index.ndim > 1:
+            query_index = query_index.squeeze(-1)
+
+        # ``backbone_features`` are the selected Cosmos/Qwen hidden tokens
+        # (layer 12 by default in N1.7). We gather the one token reserved by the
+        # prompt as the target-sign query representation.
+        vl_tokens = backbone_outputs.backbone_features
+        batch_idx = torch.arange(vl_tokens.shape[0], device=vl_tokens.device)
+        sign_hidden = vl_tokens[batch_idx, query_index]
+
+        grounding_outputs = self.sign_grounding_head(sign_hidden)
+        # Accept both explicit GT names and shorter aliases. This keeps the model
+        # side stable while the dataset schema is still being finalized.
+        gt_bbox = self._optional_tensor(
+            action_inputs,
+            "gt_sign_bbox_cxcywh",
+            "sign_bbox_cxcywh",
+        )
+        gt_status = self._optional_tensor(
+            action_inputs,
+            "gt_sign_status",
+            "sign_status",
+        )
+        if gt_bbox is not None:
+            gt_bbox = gt_bbox.to(device=vl_tokens.device, dtype=vl_tokens.dtype)
+        if gt_status is not None:
+            gt_status = gt_status.to(device=vl_tokens.device).long()
+
+        # These losses are returned separately for wandb logging and then folded
+        # into the total loss after the action head computes its original loss.
+        grounding_losses = compute_sign_grounding_losses(
+            pred_bbox_cxcywh=grounding_outputs["sign_bbox_cxcywh"],
+            status_logits=grounding_outputs["sign_status_logits"],
+            gt_bbox_cxcywh=gt_bbox,
+            gt_status=gt_status,
+            found_status_id=self.config.sign_found_status_id,
+        )
+        grounding_outputs.update(grounding_losses)
+        if gt_status is not None:
+            grounding_outputs["gt_sign_status"] = gt_status
+        return BatchFeature(data=grounding_outputs)
+
+    def _append_grounded_token(
+        self, backbone_outputs: BatchFeature, grounding_outputs: BatchFeature
+    ) -> BatchFeature:
+        gt_status = grounding_outputs.get("gt_sign_status", None)
+        # The fused token is built from both semantic sign_hidden and predicted
+        # bbox. The bbox is intentionally not detached, so action loss can still
+        # flow back through bbox_projector -> bbox_head -> sign_hidden if joint
+        # fine-tuning is enabled.
+        grounded_token = self.grounded_token_fusion(
+            sign_hidden=grounding_outputs.sign_hidden,
+            bbox_cxcywh=grounding_outputs.sign_bbox_cxcywh,
+            status_logits=grounding_outputs.sign_status_logits,
+            gt_status=gt_status,
+            found_status_id=self.config.sign_found_status_id,
+            use_status_gate=self.config.sign_use_status_gate,
+            use_gt_status_gate=self.config.sign_use_gt_status_gate,
+        )
+
+        # DiT reads ``backbone_features`` as encoder_hidden_states. Appending here
+        # changes only the condition sequence length [S -> S+1], not the DiT block
+        # implementation.
+        backbone_outputs["backbone_features"] = torch.cat(
+            [backbone_outputs.backbone_features, grounded_token],
+            dim=1,
+        )
+
+        batch_size = grounded_token.shape[0]
+        device = grounded_token.device
+        attn_token = torch.ones(
+            batch_size,
+            1,
+            device=device,
+            dtype=backbone_outputs.backbone_attention_mask.dtype,
+        )
+        # The new token is always valid cross-attention memory.
+        backbone_outputs["backbone_attention_mask"] = torch.cat(
+            [backbone_outputs.backbone_attention_mask, attn_token],
+            dim=1,
+        )
+
+        if "image_mask" in backbone_outputs:
+            # AlternateVLDiT alternates image and non-image attention. The
+            # grounded token is a semantic/action condition token, not an image
+            # patch, so it belongs to the non-image side.
+            image_token = torch.zeros(
+                batch_size,
+                1,
+                device=device,
+                dtype=backbone_outputs.image_mask.dtype,
+            )
+            backbone_outputs["image_mask"] = torch.cat(
+                [backbone_outputs.image_mask, image_token],
+                dim=1,
+            )
+
+        return backbone_outputs
+
+    def _merge_grounding_loss(
+        self, action_outputs: BatchFeature, grounding_outputs: BatchFeature | None
+    ) -> BatchFeature:
+        if grounding_outputs is None:
+            return action_outputs
+
+        # Preserve the original flow-matching loss for logging, then add the
+        # weighted auxiliary grounding objective. This keeps backward compatibility
+        # for callers that read ``loss`` while exposing sign losses separately.
+        total_grounding_loss = (
+            self.config.sign_status_loss_weight * grounding_outputs.sign_status_loss
+            + self.config.sign_bbox_l1_loss_weight * grounding_outputs.sign_bbox_l1_loss
+            + self.config.sign_bbox_giou_loss_weight * grounding_outputs.sign_bbox_giou_loss
+        )
+        action_outputs["action_loss_scalar"] = action_outputs["loss"]
+        action_outputs["loss"] = action_outputs["loss"] + total_grounding_loss
+        action_outputs["sign_loss"] = total_grounding_loss
+
+        for key, value in grounding_outputs.items():
+            action_outputs[key] = value
+        return action_outputs
+
     def forward(self, inputs: dict) -> BatchFeature:
         """
         Forward pass through the complete model.
@@ -596,7 +753,14 @@ class Gr00tN1d7(PreTrainedModel):
         # Prepare inputs for backbone and action head
         backbone_inputs, action_inputs = self.prepare_input(inputs)
         backbone_outputs = self.backbone(backbone_inputs)
+        # Sign grounding is computed from the same Cosmos tokens that normally
+        # condition action. When available, the grounded token is appended before
+        # calling the existing action head.
+        grounding_outputs = self._compute_sign_grounding(backbone_outputs, action_inputs)
+        if grounding_outputs is not None:
+            backbone_outputs = self._append_grounded_token(backbone_outputs, grounding_outputs)
         action_outputs = self.action_head(backbone_outputs, action_inputs)
+        action_outputs = self._merge_grounding_loss(action_outputs, grounding_outputs)
 
         return action_outputs
 
@@ -609,7 +773,16 @@ class Gr00tN1d7(PreTrainedModel):
 
         # Forward through backbone
         backbone_outputs = self.backbone(backbone_inputs)
+        # Inference mirrors training: predict bbox/status, append the grounded
+        # token, then let the DiT denoise the action chunk with the enriched
+        # condition sequence.
+        grounding_outputs = self._compute_sign_grounding(backbone_outputs, action_inputs)
+        if grounding_outputs is not None:
+            backbone_outputs = self._append_grounded_token(backbone_outputs, grounding_outputs)
         action_outputs = self.action_head.get_action(backbone_outputs, action_inputs, options)
+        if grounding_outputs is not None:
+            for key, value in grounding_outputs.items():
+                action_outputs[key] = value
 
         return action_outputs
 

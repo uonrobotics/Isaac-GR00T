@@ -122,6 +122,23 @@ class Gr00tN1d7Config(PretrainedConfig):
     # Multi-embodiment parameters
     max_num_embodiments: int = 32
 
+    # Optional target-sign grounding branch. It is inactive unless a batch
+    # provides ``sign_query_index``.
+    enable_sign_grounding: bool = True
+    sign_grounding_num_status_classes: int = 3
+    sign_found_status_id: int = 1
+    # These weights are applied on top of the original action loss only when
+    # sign labels are present. They are intentionally separate so wandb can show
+    # whether action learning and bbox grounding are competing.
+    sign_status_loss_weight: float = 0.5
+    sign_bbox_l1_loss_weight: float = 2.0
+    sign_bbox_giou_loss_weight: float = 2.0
+    # Gate the appended grounded token when the target sign is absent/ambiguous.
+    # During supervised training, GT status is the most stable gate; inference
+    # naturally falls back to predicted P(found).
+    sign_use_status_gate: bool = True
+    sign_use_gt_status_gate: bool = True
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         for key, value in kwargs.items():

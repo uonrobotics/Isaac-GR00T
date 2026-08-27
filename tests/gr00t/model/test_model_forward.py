@@ -172,6 +172,34 @@ class TestGr00tN1d7Forward:
             output = model.forward(inputs)
             assert output["loss"].dim() == 0
 
+    def test_forward_with_sign_grounding_outputs(self, small_model):
+        model, config = small_model
+        inputs = _make_dummy_inputs(config, batch_size=2)
+        inputs.update(
+            {
+                "sign_query_index": torch.tensor([2, 3], dtype=torch.long),
+                "gt_sign_bbox_cxcywh": torch.tensor(
+                    [[0.5, 0.5, 0.2, 0.2], [0.4, 0.4, 0.3, 0.3]],
+                    dtype=torch.float32,
+                ),
+                "gt_sign_status": torch.tensor([1, 1], dtype=torch.long),
+            }
+        )
+        output = model.forward(inputs)
+        assert "sign_bbox_cxcywh" in output
+        assert "sign_status_logits" in output
+        assert "sign_bbox_l1_loss" in output
+        assert "sign_bbox_giou_loss" in output
+        assert "sign_status_loss" in output
+        assert "sign_loss" in output
+        assert output["sign_bbox_cxcywh"].shape == (2, 4)
+        assert output["sign_status_logits"].shape == (
+            2,
+            config.sign_grounding_num_status_classes,
+        )
+        assert output["loss"].dim() == 0
+        assert torch.isfinite(output["loss"])
+
 
 class TestGr00tN1d7GetAction:
     """Test model action generation."""

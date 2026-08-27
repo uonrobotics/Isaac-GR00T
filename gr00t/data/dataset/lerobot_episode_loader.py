@@ -63,6 +63,7 @@ DEFAULT_COLUMN_NAMES = {
 }
 
 LANG_KEYS = ["task", "sub_task"]
+SIGN_GROUNDING_COLUMNS = ("gt_sign_bbox_cxcywh", "gt_sign_status")
 
 
 def _rec_defaultdict() -> defaultdict:
@@ -394,6 +395,10 @@ class LeRobotEpisodeLoader:
             )
             for joint_group in joint_groups_df.columns:
                 loaded_df[f"{modality_type}.{joint_group}"] = joint_groups_df[joint_group]
+
+        for column in SIGN_GROUNDING_COLUMNS:
+            if column in original_df.columns:
+                loaded_df[column] = original_df[column]
 
         return loaded_df
 

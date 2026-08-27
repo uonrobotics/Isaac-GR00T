@@ -24,6 +24,9 @@ from gr00t.data.types import EmbodimentTag, MessageType, ModalityConfig, VLAStep
 from .lerobot_episode_loader import LeRobotEpisodeLoader
 
 
+SIGN_GROUNDING_COLUMNS = ("gt_sign_bbox_cxcywh", "gt_sign_status")
+
+
 def extract_step_data(
     episode_data: pd.DataFrame,
     step_index: int,
@@ -67,6 +70,10 @@ def extract_step_data(
     language_data = step_data.get("language", {})
     assert len(language_data) == 1, f"Expected 1 language, got {len(language_data)}"
     text = language_data[list(language_data.keys())[0]][0]
+    metadata = {}
+    for key in SIGN_GROUNDING_COLUMNS:
+        if key in episode_data.columns:
+            metadata[key] = np.asarray(episode_data[key].iloc[step_index])
 
     vla_step_data = VLAStepData(
         images=video_data,
@@ -75,6 +82,7 @@ def extract_step_data(
         actions=action_data,
         text=text,
         embodiment=embodiment_tag,
+        metadata=metadata,
     )
     return vla_step_data
 

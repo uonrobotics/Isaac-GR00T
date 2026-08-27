@@ -30,6 +30,7 @@ from gr00t.data.dataset.sharded_mixture_dataset import (
 )
 from gr00t.data.interfaces import ShardedDataset
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 
@@ -213,6 +214,42 @@ class TestMergeStatistics:
 # ---------------------------------------------------------------------------
 # ShardedMixtureDataset tests
 # ---------------------------------------------------------------------------
+
+
+def test_extract_step_data_preserves_sign_grounding_metadata():
+    from gr00t.data.dataset.sharded_single_step_dataset import extract_step_data
+    from gr00t.data.embodiment_tags import EmbodimentTag
+    from gr00t.data.types import ModalityConfig
+
+    episode_data = pd.DataFrame(
+        {
+            "video.cam": [["frame0"], ["frame1"]],
+            "state.x": [np.array([0.0], dtype=np.float32), np.array([1.0], dtype=np.float32)],
+            "action.x": [np.array([0.1], dtype=np.float32), np.array([0.2], dtype=np.float32)],
+            "language.task": ["Go to room 1", "Go to room 1"],
+            "gt_sign_bbox_cxcywh": [
+                np.array([0.5, 0.5, 0.2, 0.2], dtype=np.float32),
+                np.array([0.4, 0.4, 0.3, 0.3], dtype=np.float32),
+            ],
+            "gt_sign_status": [1, 0],
+        }
+    )
+    modality_configs = {
+        "video": ModalityConfig(delta_indices=[0], modality_keys=["cam"]),
+        "state": ModalityConfig(delta_indices=[0], modality_keys=["x"]),
+        "action": ModalityConfig(delta_indices=[0], modality_keys=["x"]),
+        "language": ModalityConfig(delta_indices=[0], modality_keys=["task"]),
+    }
+
+    step = extract_step_data(
+        episode_data,
+        step_index=1,
+        modality_configs=modality_configs,
+        embodiment_tag=EmbodimentTag.NEW_EMBODIMENT,
+    )
+
+    np.testing.assert_allclose(step.metadata["gt_sign_bbox_cxcywh"], [0.4, 0.4, 0.3, 0.3])
+    assert step.metadata["gt_sign_status"].item() == 0
 
 
 class TestShardedMixtureDataset:

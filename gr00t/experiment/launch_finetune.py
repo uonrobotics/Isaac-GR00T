@@ -95,6 +95,20 @@ if __name__ == "__main__":
     else:
         config.model.extra_augmentation_config = None
 
+    # Sign bbox labels are normalized to the image frame, so plain resize and
+    # color jitter keep them valid. What would break alignment is geometry that
+    # changes the visible crop/frame without transforming the bbox labels too.
+    # Disable those geometric augmentations for bbox-grounding fine-tuning.
+    # Setting crop size equal to target size makes the existing preprocessing
+    # path behave as resize-only.
+    config.model.random_rotation_angle = None
+    config.model.extra_augmentation_config = None
+    config.model.letter_box_transform = False
+    config.model.image_target_size = (256, 256)
+    config.model.image_crop_size = (256, 256)
+    config.model.shortest_image_edge = None
+    config.model.crop_fraction = None
+
     config.model.load_bf16 = False
     config.model.reproject_vision = False
     config.model.model_name = "nvidia/Cosmos-Reason2-2B"

@@ -283,6 +283,28 @@ class Gr00tTrainer(Trainer):
         # Record last loss for testing purposes.
         self.loss = loss
 
+        if self.state.global_step % self.args.logging_steps == 0 and model.training:
+            # SignNav joint fine-tuning returns scalar auxiliary losses alongside
+            # the normal HF ``loss``. Logging them here keeps wandb plots split
+            # into action, bbox, GIoU, and status terms without changing Trainer's
+            # optimization path.
+            sign_logs = {}
+            for key in (
+                "action_loss_scalar",
+                "sign_loss",
+                "sign_grounding_loss",
+                "sign_bbox_l1_loss",
+                "sign_bbox_giou_loss",
+                "sign_status_loss",
+            ):
+                if key in outputs:
+                    value = outputs[key]
+                    if torch.is_tensor(value):
+                        value = value.detach().float().mean().item()
+                    sign_logs[f"train/{key}"] = value
+            if sign_logs:
+                self.log(sign_logs)
+
         # --------------------------------------------------------------
         # Accuracy calculation
         # --------------------------------------------------------------
