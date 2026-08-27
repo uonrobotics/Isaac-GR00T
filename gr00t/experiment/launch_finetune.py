@@ -95,6 +95,17 @@ if __name__ == "__main__":
     else:
         config.model.extra_augmentation_config = None
 
+    # Sign crop and bbox-coordinate inputs are already computed in the dataset.
+    # Disable geometric image augmentations so the crop image and coordinate
+    # state stay aligned with the source frame.
+    config.model.random_rotation_angle = 0
+    config.model.extra_augmentation_config = None
+    config.model.letter_box_transform = False
+    config.model.image_target_size = None
+    config.model.image_crop_size = None
+    config.model.shortest_image_edge = 256
+    config.model.crop_fraction = 1.0
+
     config.model.load_bf16 = False
     config.model.reproject_vision = False
     config.model.model_name = "nvidia/Cosmos-Reason2-2B"
