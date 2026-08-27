@@ -61,14 +61,18 @@ class SignGroundingHead(nn.Module):
 
     def __init__(self, vlm_dim: int, num_status_classes: int = 3):
         super().__init__()
-        # BBox is predicted in normalized cx/cy/w/h space. The sigmoid bounds the
-        # prediction to [0, 1], matching labels that are independent of the image
-        # resolution used by the VLM processor.
+        # Centers and sizes use separate ranges. In particular, keeping sizes
+        # away from zero prevents the width/height sigmoid from collapsing into
+        # a nearly point-sized box with vanishing gradients.
+        self.min_bbox_size = 0.01
+        self.max_bbox_size = 0.5
+        self.initial_bbox_size = 0.05
         self.bbox_head = nn.Sequential(
             nn.Linear(vlm_dim, vlm_dim),
             nn.GELU(),
             nn.Linear(vlm_dim, 4),
         )
+        self._initialize_bbox_output_layer()
         # Status lets the model say "not found" or "ambiguous" instead of being
         # forced to hallucinate a box for every frame.
         self.status_head = nn.Sequential(
@@ -77,8 +81,31 @@ class SignGroundingHead(nn.Module):
             nn.Linear(vlm_dim, num_status_classes),
         )
 
+    def _initialize_bbox_output_layer(self) -> None:
+        """Start from a non-degenerate box prior instead of a 0.5-sized box.
+
+        The old default initialization produced widths/heights near 0.5. The
+        strongly weighted GIoU term then drove their logits deep into sigmoid's
+        negative saturation region. A small positive prior matches SignNav's
+        typical boxes more closely and avoids that destructive first update.
+        """
+        output_layer = self.bbox_head[-1]
+        nn.init.zeros_(output_layer.weight)
+        nn.init.zeros_(output_layer.bias)
+        size_probability = (self.initial_bbox_size - self.min_bbox_size) / (
+            self.max_bbox_size - self.min_bbox_size
+        )
+        size_logit = torch.logit(torch.tensor(size_probability)).item()
+        with torch.no_grad():
+            output_layer.bias[2:].fill_(size_logit)
+
     def forward(self, sign_hidden: torch.Tensor) -> dict[str, torch.Tensor]:
-        bbox_cxcywh = torch.sigmoid(self.bbox_head(sign_hidden))
+        raw_bbox = self.bbox_head(sign_hidden)
+        center = torch.sigmoid(raw_bbox[..., :2])
+        size = self.min_bbox_size + (self.max_bbox_size - self.min_bbox_size) * torch.sigmoid(
+            raw_bbox[..., 2:]
+        )
+        bbox_cxcywh = torch.cat([center, size], dim=-1)
         status_logits = self.status_head(sign_hidden)
         return {
             "sign_hidden": sign_hidden,
