@@ -101,19 +101,23 @@ if __name__ == "__main__":
     # Disable those geometric augmentations for bbox-grounding fine-tuning.
     # Setting crop size equal to target size makes the existing preprocessing
     # path behave as resize-only.
-    config.model.random_rotation_angle = None
+    config.model.random_rotation_angle = 0
     config.model.extra_augmentation_config = None
     config.model.letter_box_transform = False
-    config.model.image_target_size = (256, 256)
-    config.model.image_crop_size = (256, 256)
-    config.model.shortest_image_edge = None
-    config.model.crop_fraction = None
+    config.model.image_target_size = None
+    config.model.image_crop_size = None
+    config.model.shortest_image_edge = 256
+    config.model.crop_fraction = 1.0
 
     config.model.load_bf16 = False
     config.model.reproject_vision = False
     config.model.model_name = "nvidia/Cosmos-Reason2-2B"
     config.model.backbone_trainable_params_fp32 = True
     config.model.use_relative_action = True
+    
+    config.model.sign_status_loss_weight = 1.0
+    config.model.sign_bbox_l1_loss_weight = 5.0
+    config.model.sign_bbox_giou_loss_weight = 2.0
 
     config.training.experiment_name = ft_config.experiment_name
     config.training.start_from_checkpoint = ft_config.base_model_path

@@ -105,7 +105,26 @@ class Gr00tN1d7Pipeline(ModelPipeline):
 
             unexpected_keys = loading_info.get("unexpected_keys", [])
             mismatched_keys = loading_info.get("mismatched_keys", [])
-            other_missing = [k for k in missing_keys if "mask_token" not in k]
+            randomly_initialized_prefixes = (
+                "grounded_token_fusion.",
+                "sign_grounding_head.",
+            )
+            randomly_initialized_keys = [
+                key for key in missing_keys if key.startswith(randomly_initialized_prefixes)
+            ]
+            if randomly_initialized_keys:
+                logging.info(
+                    "New sign-grounding parameters are not present in the checkpoint and will "
+                    "be trained from their random initialization: %s",
+                    randomly_initialized_keys,
+                )
+
+            other_missing = [
+                key
+                for key in missing_keys
+                if "mask_token" not in key
+                and not key.startswith(randomly_initialized_prefixes)
+            ]
             errors = []
             if other_missing:
                 errors.append(f"Missing keys ({len(other_missing)}): {other_missing}")

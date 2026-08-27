@@ -956,6 +956,13 @@ class Gr00tN1d7Processor(BaseProcessor):
                 "max_action_horizon",
                 "max_state_dim",
                 "max_action_dim",
+                "image_crop_size",
+                "image_target_size",
+                "shortest_image_edge",
+                "crop_fraction",
+                "use_albumentations",
+                "extra_augmentation_config",
+                "letter_box_transform",
             ]
             for key in override_keys:
                 if key in kwargs:
