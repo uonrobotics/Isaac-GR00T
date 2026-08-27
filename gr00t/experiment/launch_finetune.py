@@ -118,6 +118,7 @@ if __name__ == "__main__":
     config.model.sign_status_loss_weight = 1.0
     config.model.sign_bbox_l1_loss_weight = 5.0
     config.model.sign_bbox_giou_loss_weight = 2.0
+    config.model.sign_loss_weight = 0.05
 
     config.training.experiment_name = ft_config.experiment_name
     config.training.start_from_checkpoint = ft_config.base_model_path

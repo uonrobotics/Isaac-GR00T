@@ -731,9 +731,11 @@ class Gr00tN1d7(PreTrainedModel):
             + self.config.sign_bbox_l1_loss_weight * grounding_outputs.sign_bbox_l1_loss
             + self.config.sign_bbox_giou_loss_weight * grounding_outputs.sign_bbox_giou_loss
         )
+        scaled_grounding_loss = self.config.sign_loss_weight * total_grounding_loss
         action_outputs["action_loss_scalar"] = action_outputs["loss"]
-        action_outputs["loss"] = action_outputs["loss"] + total_grounding_loss
+        action_outputs["loss"] = action_outputs["loss"] + scaled_grounding_loss
         action_outputs["sign_loss"] = total_grounding_loss
+        action_outputs["scaled_sign_loss"] = scaled_grounding_loss
 
         for key, value in grounding_outputs.items():
             action_outputs[key] = value

@@ -133,6 +133,10 @@ class Gr00tN1d7Config(PretrainedConfig):
     sign_status_loss_weight: float = 0.5
     sign_bbox_l1_loss_weight: float = 2.0
     sign_bbox_giou_loss_weight: float = 2.0
+    # Scale the complete auxiliary objective relative to the original action
+    # objective. A value below 1 prevents grounding from dominating joint
+    # fine-tuning while preserving the relative weights above.
+    sign_loss_weight: float = 0.05
     # Gate the appended grounded token when the target sign is absent/ambiguous.
     # During supervised training, GT status is the most stable gate; inference
     # naturally falls back to predicted P(found).

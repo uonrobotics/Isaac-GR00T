@@ -292,6 +292,7 @@ class Gr00tTrainer(Trainer):
             for key in (
                 "action_loss_scalar",
                 "sign_loss",
+                "scaled_sign_loss",
                 "sign_grounding_loss",
                 "sign_bbox_l1_loss",
                 "sign_bbox_giou_loss",
