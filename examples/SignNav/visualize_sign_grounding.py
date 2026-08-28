@@ -10,8 +10,10 @@ per found-sign sample plus a JSON summary containing IoU and prediction spread.
 from __future__ import annotations
 
 import argparse
+from collections import Counter, defaultdict
 import json
 from pathlib import Path
+import textwrap
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -36,8 +38,18 @@ def parse_args() -> argparse.Namespace:
         help="Processor directory. Defaults to CHECKPOINT/processor, then CHECKPOINT.parent/processor.",
     )
     parser.add_argument("--output-dir", type=Path, default=Path("sign_grounding_visualizations"))
-    parser.add_argument("--num-samples", type=int, default=20)
-    parser.add_argument("--max-episodes", type=int, default=10)
+    parser.add_argument(
+        "--num-samples-per-episode",
+        type=int,
+        default=20,
+        help="Number of random found-sign frames drawn from one random episode per source goal.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed used for reproducible goal-balanced sampling.",
+    )
     parser.add_argument("--found-status-id", type=int, default=1)
     parser.add_argument("--embodiment-tag", default="NEW_EMBODIMENT")
     parser.add_argument("--device", default="cuda:0")
@@ -103,6 +115,8 @@ def draw_result(
     iou: float,
     pred_status: int,
     found_probability: float,
+    source_goal: str,
+    goal: str,
 ) -> Image.Image:
     result = image.convert("RGB").copy()
     draw = ImageDraw.Draw(result)
@@ -111,26 +125,50 @@ def draw_result(
     line_width = max(2, round(min(result.size) / 150))
     draw.rectangle(gt_pixels, outline=(0, 255, 0), width=line_width)
     draw.rectangle(pred_pixels, outline=(255, 40, 40), width=line_width)
-    label = f"GT=green  pred=red  IoU={iou:.3f}  status={pred_status}  P(found)={found_probability:.3f}"
-    text_box = draw.textbbox((0, 0), label)
+    metric_label = (
+        f"GT=green  pred=red  IoU={iou:.3f}  "
+        f"status={pred_status}  P(found)={found_probability:.3f}"
+    )
+    goal_label = (
+        f"Goal [{source_goal}]: {textwrap.shorten(goal, width=120, placeholder='...')}"
+    )
+    label = f"{metric_label}\n{goal_label}"
+    text_box = draw.multiline_textbbox((0, 0), label, spacing=2)
     text_height = text_box[3] - text_box[1]
     draw.rectangle((0, 0, result.width, text_height + 8), fill=(0, 0, 0))
-    draw.text((4, 4), label, fill=(255, 255, 255))
+    draw.multiline_text((4, 4), label, fill=(255, 255, 255), spacing=2)
     return result
+
+
+def load_episodes_by_source_goal(dataset: Path) -> dict[str, list[int]]:
+    """Read episode-to-goal mappings without decoding any video frames."""
+    episodes_path = dataset / "meta" / "episodes.jsonl"
+    if not episodes_path.is_file():
+        raise FileNotFoundError(f"Missing episode metadata: {episodes_path}")
+
+    episodes_by_goal: dict[str, list[int]] = defaultdict(list)
+    with episodes_path.open() as file:
+        for line in file:
+            metadata = json.loads(line)
+            source_goal = metadata.get("source_goal")
+            if source_goal is None:
+                raise KeyError(f"source_goal is missing from {episodes_path}")
+            episodes_by_goal[str(source_goal)].append(int(metadata["episode_index"]))
+    return dict(episodes_by_goal)
 
 
 def main() -> None:
     args = parse_args()
-    if args.num_samples <= 0:
-        raise ValueError("--num-samples must be positive")
+    if args.num_samples_per_episode <= 0:
+        raise ValueError("--num-samples-per-episode must be positive")
 
     checkpoint = args.checkpoint.resolve()
     processor_path = resolve_processor_path(checkpoint, args.processor)
     embodiment = EmbodimentTag.resolve(args.embodiment_tag)
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    model = AutoModel.from_pretrained(checkpoint)
-    model.eval().to(device=args.device, dtype=torch.bfloat16)
+    model = AutoModel.from_pretrained(checkpoint, dtype=torch.bfloat16)
+    model.eval().to(device=args.device)
     processor = AutoProcessor.from_pretrained(processor_path)
     processor.eval()
 
@@ -148,91 +186,127 @@ def main() -> None:
     gt_boxes: list[np.ndarray] = []
     video_key = modality_configs["video"].modality_keys[0]
     max_action_delta = max(modality_configs["action"].delta_indices)
-
-    for episode_position in range(min(len(loader), args.max_episodes)):
-        episode = loader[episode_position]
-        last_valid_step = len(episode) - max_action_delta
-        candidate_steps = [
-            step
-            for step in range(max(0, last_valid_step))
-            if scalar_int(episode["gt_sign_status"].iloc[step]) == args.found_status_id
-        ]
+    rng = np.random.default_rng(args.seed)
+    episodes_by_goal = load_episodes_by_source_goal(args.dataset)
+    selected_candidates: list[tuple[int, int, str]] = []
+    selected_episode_by_goal: dict[str, int] = {}
+    for source_goal in sorted(episodes_by_goal):
+        candidate_steps = []
+        episode_position = -1
+        for candidate_episode in rng.permutation(episodes_by_goal[source_goal]):
+            episode_position = int(candidate_episode)
+            episode = loader[episode_position]
+            last_valid_step = len(episode) - max_action_delta
+            candidate_steps = [
+                step
+                for step in range(max(0, last_valid_step))
+                if scalar_int(episode["gt_sign_status"].iloc[step]) == args.found_status_id
+            ]
+            if candidate_steps:
+                break
         if not candidate_steps:
+            print(f"Warning: no found-sign frames available for {source_goal}")
             continue
 
-        remaining = args.num_samples - len(records)
-        # Spread samples over the episode instead of taking adjacent video frames.
-        take = min(remaining, len(candidate_steps))
-        selected = np.linspace(0, len(candidate_steps) - 1, num=take, dtype=int)
-        for selected_position in selected:
-            step = candidate_steps[int(selected_position)]
-            vla_step = extract_step_data(
-                episode,
-                step,
-                modality_configs,
-                embodiment,
-                allow_padding=False,
+        selected_episode_by_goal[source_goal] = episode_position
+        print(f"Selected episode {episode_position} for {source_goal}")
+        take = min(args.num_samples_per_episode, len(candidate_steps))
+        if take < args.num_samples_per_episode:
+            print(
+                f"Warning: {source_goal} episode {episode_position} has only {take} "
+                "valid found-sign frames"
             )
-            processed = processor(
-                [{"type": MessageType.EPISODE_STEP.value, "content": vla_step}]
+        if take:
+            selected_steps = rng.choice(candidate_steps, size=take, replace=False)
+            selected_candidates.extend(
+                (episode_position, int(step), source_goal) for step in selected_steps
             )
-            model_inputs = processor.collator([processed])["inputs"]
+    # Process one episode at a time so decoded video frames from many episodes
+    # are never retained in memory simultaneously. Selection remains random;
+    # sorting only changes the order in which the chosen samples are rendered.
+    selected_candidates.sort(key=lambda candidate: candidate[0])
+    loaded_episode_position = None
+    episode = None
+    for episode_position, step, source_goal in selected_candidates:
+        if episode_position != loaded_episode_position:
+            episode = loader[episode_position]
+            loaded_episode_position = episode_position
+        assert episode is not None
+        vla_step = extract_step_data(
+            episode,
+            step,
+            modality_configs,
+            embodiment,
+            allow_padding=False,
+        )
+        # Use the exact text passed to the processor in case the loader normalizes it.
+        goal = str(vla_step.text)
+        processed = processor(
+            [{"type": MessageType.EPISODE_STEP.value, "content": vla_step}]
+        )
+        model_inputs = processor.collator([processed])["inputs"]
 
-            with torch.inference_mode():
-                backbone_inputs, action_inputs = model.prepare_input(model_inputs)
-                backbone_outputs = model.backbone(backbone_inputs)
-                grounding = model._compute_sign_grounding(backbone_outputs, action_inputs)
-            if grounding is None:
-                raise RuntimeError("The model did not produce sign-grounding outputs")
+        with torch.inference_mode():
+            backbone_inputs, action_inputs = model.prepare_input(model_inputs)
+            backbone_outputs = model.backbone(backbone_inputs)
+            grounding = model._compute_sign_grounding(backbone_outputs, action_inputs)
+        if grounding is None:
+            raise RuntimeError("The model did not produce sign-grounding outputs")
 
-            pred_cxcywh = grounding.sign_bbox_cxcywh[0].float().cpu().numpy()
-            logits = grounding.sign_status_logits[0].float().cpu()
-            probabilities = torch.softmax(logits, dim=-1).numpy()
-            pred_status = int(probabilities.argmax())
-            found_probability = float(probabilities[args.found_status_id])
-            gt_cxcywh = np.asarray(vla_step.metadata["gt_sign_bbox_cxcywh"], dtype=np.float32)
-            gt_xyxy = cxcywh_to_xyxy(gt_cxcywh)
-            pred_xyxy = cxcywh_to_xyxy(pred_cxcywh)
-            iou = box_iou(gt_xyxy, pred_xyxy)
+        pred_cxcywh = grounding.sign_bbox_cxcywh[0].float().cpu().numpy()
+        logits = grounding.sign_status_logits[0].float().cpu()
+        probabilities = torch.softmax(logits, dim=-1).numpy()
+        pred_status = int(probabilities.argmax())
+        found_probability = float(probabilities[args.found_status_id])
+        gt_cxcywh = np.asarray(vla_step.metadata["gt_sign_bbox_cxcywh"], dtype=np.float32)
+        gt_xyxy = cxcywh_to_xyxy(gt_cxcywh)
+        pred_xyxy = cxcywh_to_xyxy(pred_cxcywh)
+        iou = box_iou(gt_xyxy, pred_xyxy)
 
-            raw_image = episode[f"video.{video_key}"].iloc[step]
-            if not isinstance(raw_image, Image.Image):
-                raw_image = Image.fromarray(np.asarray(raw_image))
-            rendered = draw_result(
-                raw_image,
-                gt_xyxy,
-                pred_xyxy,
-                iou,
-                pred_status,
-                found_probability,
-            )
-            filename = f"sample_{len(records):03d}_episode_{episode_position:03d}_step_{step:06d}.png"
-            rendered.save(args.output_dir / filename)
+        raw_image = episode[f"video.{video_key}"].iloc[step]
+        if not isinstance(raw_image, Image.Image):
+            raw_image = Image.fromarray(np.asarray(raw_image))
+        rendered = draw_result(
+            raw_image,
+            gt_xyxy,
+            pred_xyxy,
+            iou,
+            pred_status,
+            found_probability,
+            source_goal,
+            goal,
+        )
+        filename = (
+            f"sample_{len(records):03d}_{source_goal}_"
+            f"episode_{episode_position:03d}_step_{step:06d}.png"
+        )
+        rendered.save(args.output_dir / filename)
 
-            pred_boxes.append(pred_cxcywh)
-            gt_boxes.append(gt_cxcywh)
-            records.append(
-                {
-                    "file": filename,
-                    "episode_position": episode_position,
-                    "step": step,
-                    "iou": iou,
-                    "gt_bbox_cxcywh": gt_cxcywh.tolist(),
-                    "pred_bbox_cxcywh": pred_cxcywh.tolist(),
-                    "pred_status": pred_status,
-                    "found_probability": found_probability,
-                }
-            )
-            print(f"[{len(records):02d}/{args.num_samples}] {filename}: IoU={iou:.3f}")
-            if len(records) >= args.num_samples:
-                break
-        if len(records) >= args.num_samples:
-            break
+        pred_boxes.append(pred_cxcywh)
+        gt_boxes.append(gt_cxcywh)
+        records.append(
+            {
+                "file": filename,
+                "episode_position": episode_position,
+                "step": step,
+                "source_goal": source_goal,
+                "goal": goal,
+                "iou": iou,
+                "gt_bbox_cxcywh": gt_cxcywh.tolist(),
+                "pred_bbox_cxcywh": pred_cxcywh.tolist(),
+                "pred_status": pred_status,
+                "found_probability": found_probability,
+            }
+        )
+        print(
+            f"[{len(records):03d}/{len(selected_candidates)}] {filename}: "
+            f"IoU={iou:.3f} goal={source_goal!r}"
+        )
 
     if not records:
         raise RuntimeError(
-            f"No samples with gt_sign_status={args.found_status_id} were found in the first "
-            f"{args.max_episodes} episodes"
+            f"No samples with gt_sign_status={args.found_status_id} were found in the "
+            "randomly selected goal episodes"
         )
 
     pred_array = np.stack(pred_boxes)
@@ -243,6 +317,13 @@ def main() -> None:
         "processor": str(processor_path),
         "dataset": str(args.dataset.resolve()),
         "num_samples": len(records),
+        "num_samples_per_episode": args.num_samples_per_episode,
+        "seed": args.seed,
+        "selected_episode_by_goal": selected_episode_by_goal,
+        "source_goal_counts": dict(
+            sorted(Counter(record["source_goal"] for record in records).items())
+        ),
+        "goal_counts": dict(sorted(Counter(record["goal"] for record in records).items())),
         "mean_iou": float(ious.mean()),
         "median_iou": float(np.median(ious)),
         "iou_at_50": float((ious >= 0.5).mean()),
@@ -284,14 +365,16 @@ export HF_HOME=/workspace/hf_cache
 export HF_HUB_CACHE=/workspace/hf_cache/transformers
 export TRANSFORMERS_CACHE=/workspace/hf_cache/transformers
 
-RUN_DIR=/workspace/finetune_test/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260827
+RUN_DIR=/workspace/finetune_test/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260827--w1_5_0p5--signw0p05
+RUN_DIR=/workspace/finetune_test/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260827--w0p5_2_2--signw0p05
 
 python examples/SignNav/visualize_sign_grounding.py \
-  --checkpoint "$RUN_DIR/checkpoint-10000" \
+  --checkpoint "$RUN_DIR/checkpoint-100000" \
   --processor "$RUN_DIR/processor" \
   --dataset /dataset/SignNav/sim_v2_lerobot_sign_grounding \
-  --output-dir /workspace/sign_grounding_visualizations/bbox_head_fixed_init \
-  --num-samples 20 \
+  --output-dir /workspace/sign_grounding_visualizations/w0p5_2_2--signw0p05@100000 \
+  --num-samples-per-episode 20 \
+  --seed 42 \
   --device cuda:0
   
 
