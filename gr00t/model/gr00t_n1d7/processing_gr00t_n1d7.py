@@ -25,7 +25,7 @@ import warnings
 
 import albumentations as A
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import torch
 import torchvision.transforms.v2 as transforms
 from transformers import AutoProcessor
@@ -708,6 +708,16 @@ class Gr00tN1d7Processor(BaseProcessor):
         image_transform: transforms.Compose | A.Compose,
         language: str,
     ):
+        # SignNav provides a full ego view plus a square crop whose bbox is expressed in the
+        # original ego-view coordinate system. Keep the ego view untouched (and therefore keep
+        # the bbox valid), while padding only the crop to the ego view's aspect ratio so the
+        # aspect-preserving image transform produces stackable tensors for both views.
+        if "ego_view" in image_keys and "sign_crop" in image_keys:
+            images = dict(images)
+            images["sign_crop"] = self._pad_images_to_reference_aspect(
+                images["sign_crop"], images["ego_view"]
+            )
+
         temporal_stacked_images = {}
 
         if self.use_albumentations:
@@ -744,12 +754,120 @@ class Gr00tN1d7Processor(BaseProcessor):
             assert v.dtype == torch.uint8, f"{v} is not a uint8 tensor"
             assert v.shape[1] == 3, f"{v} is not a 3 channel tensor"
 
+        if "ego_view" in image_keys and "sign_crop" in image_keys:
+            self._save_signnav_debug_pair_once(images, temporal_stacked_images)
+
         stacked_images = torch.stack(
             [temporal_stacked_images[view] for view in image_keys], dim=1
         ).flatten(0, 1)  # (T*V, C, H, W)
 
         vlm_inputs = self._apply_vlm_processing(stacked_images, language)
         return vlm_inputs
+
+    @staticmethod
+    def _pad_images_to_reference_aspect(
+        images: list[Image.Image | np.ndarray],
+        reference_images: list[Image.Image | np.ndarray],
+    ) -> list[Image.Image]:
+        """Center-pad images to their corresponding reference image aspect ratios."""
+        if len(images) != len(reference_images):
+            raise ValueError(
+                "sign_crop and ego_view must contain the same number of temporal frames, "
+                f"got {len(images)} and {len(reference_images)}"
+            )
+
+        padded_images = []
+        for image, reference_image in zip(images, reference_images, strict=True):
+            image = Gr00tN1d7Processor._as_pil_image(image)
+            reference_image = Gr00tN1d7Processor._as_pil_image(reference_image)
+            width, height = image.size
+            reference_width, reference_height = reference_image.size
+            if min(width, height, reference_width, reference_height) <= 0:
+                raise ValueError("Image dimensions must be positive")
+
+            # Compare ratios with integer arithmetic to avoid floating-point edge cases.
+            if width * reference_height < height * reference_width:
+                target_width = round(height * reference_width / reference_height)
+                total_padding = target_width - width
+                left = total_padding // 2
+                padding = (left, 0, total_padding - left, 0)
+            elif width * reference_height > height * reference_width:
+                target_height = round(width * reference_height / reference_width)
+                total_padding = target_height - height
+                top = total_padding // 2
+                padding = (0, top, 0, total_padding - top)
+            else:
+                padding = (0, 0, 0, 0)
+
+            padded_images.append(ImageOps.expand(image, border=padding, fill=0))
+
+        return padded_images
+
+    @staticmethod
+    def _as_pil_image(image: Image.Image | np.ndarray) -> Image.Image:
+        """Return a PIL image for the image types produced by the dataset loader."""
+        if isinstance(image, Image.Image):
+            return image
+        if isinstance(image, np.ndarray):
+            return Image.fromarray(image)
+        raise TypeError(f"Expected a PIL image or NumPy array, got {type(image).__name__}")
+
+    @staticmethod
+    def _save_signnav_debug_pair_once(images: dict, transformed_images: dict[str, torch.Tensor]):
+        """Save one raw/padded and transformed SignNav image pair across all workers and ranks."""
+        output_dir_value = os.environ.get("SIGNNAV_DEBUG_PAIR_DIR")
+        if not output_dir_value:
+            return
+
+        output_dir = Path(output_dir_value)
+        marker = output_dir / ".saving"
+        complete_marker = output_dir / ".complete"
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            if complete_marker.exists():
+                return
+            marker_fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            return
+        except OSError as error:
+            logger.warning("Could not reserve SignNav debug image output %s: %s", output_dir, error)
+            return
+
+        os.close(marker_fd)
+        try:
+            ego_raw = Gr00tN1d7Processor._as_pil_image(images["ego_view"][0])
+            crop_padded_raw = Gr00tN1d7Processor._as_pil_image(images["sign_crop"][0])
+            ego_raw.save(output_dir / "ego_view_raw.png")
+            crop_padded_raw.save(output_dir / "sign_crop_padded_raw.png")
+
+            transformed_pil_images = {}
+            for view in ("ego_view", "sign_crop"):
+                image_tensor = transformed_images[view][0].permute(1, 2, 0).cpu().numpy()
+                transformed_pil_images[view] = Image.fromarray(image_tensor)
+                transformed_pil_images[view].save(output_dir / f"{view}_transformed.png")
+
+            ego_transformed = transformed_pil_images["ego_view"]
+            crop_transformed = transformed_pil_images["sign_crop"]
+            pair_preview = Image.new(
+                "RGB",
+                (ego_transformed.width + crop_transformed.width, ego_transformed.height),
+            )
+            pair_preview.paste(ego_transformed, (0, 0))
+            pair_preview.paste(crop_transformed, (ego_transformed.width, 0))
+            pair_preview.save(output_dir / "pair_transformed_side_by_side.png")
+
+            metadata = (
+                f"ego_view_raw={ego_raw.size}\n"
+                f"sign_crop_padded_raw={crop_padded_raw.size}\n"
+                f"ego_view_transformed={tuple(transformed_images['ego_view'][0].shape)}\n"
+                f"sign_crop_transformed={tuple(transformed_images['sign_crop'][0].shape)}\n"
+            )
+            (output_dir / "shapes.txt").write_text(metadata)
+            os.replace(marker, complete_marker)
+            logger.info("Saved one SignNav debug image pair to %s", output_dir)
+        except Exception as error:
+            marker.unlink(missing_ok=True)
+            logger.warning("Could not save SignNav debug image pair to %s: %s", output_dir, error)
 
     def save_pretrained(self, save_directory: str | Path) -> list[Path]:
         save_directory = Path(save_directory)

@@ -199,6 +199,25 @@ class TestProcessorVLMInputs:
         )
         assert "vlm_content" in vlm_inputs
 
+    def test_sign_crop_is_padded_to_ego_view_aspect(self, processor):
+        # The LeRobot loader supplies NumPy arrays here, not PIL images.
+        ego_view = np.zeros((400, 640, 3), dtype=np.uint8)
+        sign_crop = np.full((128, 128, 3), 255, dtype=np.uint8)
+
+        padded = processor._pad_images_to_reference_aspect([sign_crop], [ego_view])[0]
+
+        assert padded.size == (205, 128)
+        padded_array = np.asarray(padded)
+        assert np.all(padded_array[:, :38] == 0)
+        assert np.all(padded_array[:, 38:166] == 255)
+        assert np.all(padded_array[:, 166:] == 0)
+
+    def test_sign_crop_padding_rejects_mismatched_temporal_lengths(self, processor):
+        image = Image.fromarray(np.zeros((128, 128, 3), dtype=np.uint8))
+
+        with pytest.raises(ValueError, match="same number of temporal frames"):
+            processor._pad_images_to_reference_aspect([image], [image, image])
+
 
 class TestProcessorDecodeAction:
     """Test action denormalization."""
