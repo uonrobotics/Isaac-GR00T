@@ -15,16 +15,16 @@ import json
 from pathlib import Path
 import textwrap
 
-import numpy as np
-from PIL import Image, ImageDraw
-import torch
-from transformers import AutoModel, AutoProcessor
-
-import gr00t.model  # noqa: F401  # Register GR00T AutoModel/AutoProcessor classes.
 from gr00t.data.dataset.lerobot_episode_loader import LeRobotEpisodeLoader
 from gr00t.data.dataset.sharded_single_step_dataset import extract_step_data
 from gr00t.data.embodiment_tags import EmbodimentTag
 from gr00t.data.types import MessageType
+import gr00t.model  # noqa: F401  # Register GR00T AutoModel/AutoProcessor classes.
+from gr00t.model.gr00t_n1d7.processing_gr00t_n1d7 import SIGN_QUERY_MARKER
+import numpy as np
+from PIL import Image, ImageDraw
+import torch
+from transformers import AutoModel, AutoProcessor
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,6 +71,12 @@ def scalar_int(value) -> int:
     return int(np.asarray(value).reshape(-1)[0])
 
 
+def ensure_sign_query_marker(text: str) -> str:
+    if SIGN_QUERY_MARKER.lower() in text.lower() or "target sign" in text.lower():
+        return text
+    return f"{text}\n{SIGN_QUERY_MARKER}"
+
+
 def cxcywh_to_xyxy(box: np.ndarray) -> np.ndarray:
     cx, cy, width, height = box.astype(np.float32)
     return np.clip(
@@ -110,9 +116,9 @@ def pixel_box(box: np.ndarray, width: int, height: int) -> tuple[int, int, int, 
 
 def draw_result(
     image: Image.Image,
-    gt_xyxy: np.ndarray,
+    gt_xyxy: np.ndarray | None,
     pred_xyxy: np.ndarray,
-    iou: float,
+    iou: float | None,
     pred_status: int,
     found_probability: float,
     source_goal: str,
@@ -120,13 +126,15 @@ def draw_result(
 ) -> Image.Image:
     result = image.convert("RGB").copy()
     draw = ImageDraw.Draw(result)
-    gt_pixels = pixel_box(gt_xyxy, result.width, result.height)
     pred_pixels = pixel_box(pred_xyxy, result.width, result.height)
     line_width = max(2, round(min(result.size) / 150))
-    draw.rectangle(gt_pixels, outline=(0, 255, 0), width=line_width)
+    if gt_xyxy is not None:
+        gt_pixels = pixel_box(gt_xyxy, result.width, result.height)
+        draw.rectangle(gt_pixels, outline=(0, 255, 0), width=line_width)
     draw.rectangle(pred_pixels, outline=(255, 40, 40), width=line_width)
+    iou_text = f"{iou:.3f}" if iou is not None else "NA"
     metric_label = (
-        f"GT=green  pred=red  IoU={iou:.3f}  "
+        f"GT=green(if available)  pred=red  IoU={iou_text}  "
         f"status={pred_status}  P(found)={found_probability:.3f}"
     )
     goal_label = (
@@ -184,6 +192,7 @@ def main() -> None:
     records: list[dict] = []
     pred_boxes: list[np.ndarray] = []
     gt_boxes: list[np.ndarray] = []
+    ious: list[float] = []
     video_key = modality_configs["video"].modality_keys[0]
     max_action_delta = max(modality_configs["action"].delta_indices)
     rng = np.random.default_rng(args.seed)
@@ -197,15 +206,11 @@ def main() -> None:
             episode_position = int(candidate_episode)
             episode = loader[episode_position]
             last_valid_step = len(episode) - max_action_delta
-            candidate_steps = [
-                step
-                for step in range(max(0, last_valid_step))
-                if scalar_int(episode["gt_sign_status"].iloc[step]) == args.found_status_id
-            ]
+            candidate_steps = list(range(max(0, last_valid_step)))
             if candidate_steps:
                 break
         if not candidate_steps:
-            print(f"Warning: no found-sign frames available for {source_goal}")
+            print(f"Warning: no valid action-horizon frames available for {source_goal}")
             continue
 
         selected_episode_by_goal[source_goal] = episode_position
@@ -214,7 +219,7 @@ def main() -> None:
         if take < args.num_samples_per_episode:
             print(
                 f"Warning: {source_goal} episode {episode_position} has only {take} "
-                "valid found-sign frames"
+                "valid action-horizon frames"
             )
         if take:
             selected_steps = rng.choice(candidate_steps, size=take, replace=False)
@@ -239,8 +244,9 @@ def main() -> None:
             embodiment,
             allow_padding=False,
         )
-        # Use the exact text passed to the processor in case the loader normalizes it.
-        goal = str(vla_step.text)
+        # Sign grounding should be driven by the inference prompt marker, not by GT labels.
+        goal = ensure_sign_query_marker(str(vla_step.text))
+        vla_step.text = goal
         processed = processor(
             [{"type": MessageType.EPISODE_STEP.value, "content": vla_step}]
         )
@@ -258,10 +264,19 @@ def main() -> None:
         probabilities = torch.softmax(logits, dim=-1).numpy()
         pred_status = int(probabilities.argmax())
         found_probability = float(probabilities[args.found_status_id])
-        gt_cxcywh = np.asarray(vla_step.metadata["gt_sign_bbox_cxcywh"], dtype=np.float32)
-        gt_xyxy = cxcywh_to_xyxy(gt_cxcywh)
         pred_xyxy = cxcywh_to_xyxy(pred_cxcywh)
-        iou = box_iou(gt_xyxy, pred_xyxy)
+        gt_cxcywh = None
+        gt_xyxy = None
+        gt_status = None
+        iou = None
+        if "gt_sign_bbox_cxcywh" in vla_step.metadata:
+            gt_cxcywh = np.asarray(vla_step.metadata["gt_sign_bbox_cxcywh"], dtype=np.float32)
+            gt_xyxy = cxcywh_to_xyxy(gt_cxcywh)
+            iou = box_iou(gt_xyxy, pred_xyxy)
+            ious.append(iou)
+            gt_boxes.append(gt_cxcywh)
+        if "gt_sign_status" in vla_step.metadata:
+            gt_status = scalar_int(vla_step.metadata["gt_sign_status"])
 
         raw_image = episode[f"video.{video_key}"].iloc[step]
         if not isinstance(raw_image, Image.Image):
@@ -283,7 +298,6 @@ def main() -> None:
         rendered.save(args.output_dir / filename)
 
         pred_boxes.append(pred_cxcywh)
-        gt_boxes.append(gt_cxcywh)
         records.append(
             {
                 "file": filename,
@@ -292,26 +306,24 @@ def main() -> None:
                 "source_goal": source_goal,
                 "goal": goal,
                 "iou": iou,
-                "gt_bbox_cxcywh": gt_cxcywh.tolist(),
+                "gt_bbox_cxcywh": gt_cxcywh.tolist() if gt_cxcywh is not None else None,
+                "gt_sign_status": gt_status,
                 "pred_bbox_cxcywh": pred_cxcywh.tolist(),
                 "pred_status": pred_status,
                 "found_probability": found_probability,
             }
         )
+        iou_text = f"{iou:.3f}" if iou is not None else "NA"
         print(
             f"[{len(records):03d}/{len(selected_candidates)}] {filename}: "
-            f"IoU={iou:.3f} goal={source_goal!r}"
+            f"IoU={iou_text} goal={source_goal!r}"
         )
 
     if not records:
-        raise RuntimeError(
-            f"No samples with gt_sign_status={args.found_status_id} were found in the "
-            "randomly selected goal episodes"
-        )
+        raise RuntimeError("No valid action-horizon samples were found in the selected episodes")
 
     pred_array = np.stack(pred_boxes)
-    gt_array = np.stack(gt_boxes)
-    ious = np.asarray([record["iou"] for record in records], dtype=np.float32)
+    iou_array = np.asarray(ious, dtype=np.float32)
     summary = {
         "checkpoint": str(checkpoint),
         "processor": str(processor_path),
@@ -324,19 +336,23 @@ def main() -> None:
             sorted(Counter(record["source_goal"] for record in records).items())
         ),
         "goal_counts": dict(sorted(Counter(record["goal"] for record in records).items())),
-        "mean_iou": float(ious.mean()),
-        "median_iou": float(np.median(ious)),
-        "iou_at_50": float((ious >= 0.5).mean()),
+        "num_samples_with_gt_bbox": len(gt_boxes),
+        "mean_iou": float(iou_array.mean()) if len(iou_array) else None,
+        "median_iou": float(np.median(iou_array)) if len(iou_array) else None,
+        "iou_at_50": float((iou_array >= 0.5).mean()) if len(iou_array) else None,
         "pred_bbox_mean_cxcywh": pred_array.mean(axis=0).tolist(),
         "pred_bbox_std_cxcywh": pred_array.std(axis=0).tolist(),
-        "gt_bbox_mean_cxcywh": gt_array.mean(axis=0).tolist(),
-        "gt_bbox_std_cxcywh": gt_array.std(axis=0).tolist(),
+        "gt_bbox_mean_cxcywh": np.stack(gt_boxes).mean(axis=0).tolist() if gt_boxes else None,
+        "gt_bbox_std_cxcywh": np.stack(gt_boxes).std(axis=0).tolist() if gt_boxes else None,
         "samples": records,
     }
     summary_path = args.output_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"Saved {len(records)} visualizations to {args.output_dir}")
-    print(f"Mean IoU: {summary['mean_iou']:.4f}; IoU@0.5: {summary['iou_at_50']:.4f}")
+    if summary["mean_iou"] is not None:
+        print(f"Mean IoU: {summary['mean_iou']:.4f}; IoU@0.5: {summary['iou_at_50']:.4f}")
+    else:
+        print("Mean IoU: NA; no GT bbox values were available")
     print(f"Prediction std (cx, cy, w, h): {summary['pred_bbox_std_cxcywh']}")
 
 
@@ -377,5 +393,5 @@ python examples/SignNav/visualize_sign_grounding.py \
   --seed 42 \
   --device cuda:0
   
-
+  
 '''
