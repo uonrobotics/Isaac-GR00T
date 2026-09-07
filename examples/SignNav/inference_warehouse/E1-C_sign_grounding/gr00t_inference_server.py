@@ -39,65 +39,37 @@ import socket
 import sys
 import threading
 import time
+from typing import Any
 from urllib.parse import urlparse
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+import torch
 
 from gr00t.policy.gr00t_policy import Gr00tPolicy
 from gr00t.data.embodiment_tags import EmbodimentTag
+from gr00t.data.types import MessageType, VLAStepData
 
 
 LISTEN_PORT = 5000
 WEB_PORT = 9090
 WARMUP_STEPS = 4
 ACTION_STEP_IDX = 1
-DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[1] / "modality_config_signnav.py"
+DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[2] / "modality_config_signnav.py"
 DEFAULT_TARGET_AREA = 1
 DEFAULT_SIGN_SEG_GENERATOR = Path(
     "/home/sujin/workspace/physical-ai/sign_seg_test/jobs/segmented_rgb_generator.py"
 )
 DEFAULT_SEGMENTED_VIEW_KEY = "segmented_ego_view"
-DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parent / "script" / "third_party" / "sam3"
+GROUNDING_VIEW_KEY = "sign_grounding"
+APPEND_QUERY_MARKER_METADATA = {"gt_sign_status": np.asarray(0, dtype=np.int64)}
+DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parents[1] / "script" / "third_party" / "sam3"
 
 PROMPT_VERSION = 1 
 PROMPT_TEMPLATES = {
     1: (
         "Find the sign panel containing Area {area} and use it to choose the navigation action. "
     )
-    # 1: (
-    #     "Your goal is to navigate safely to Area {area} using directional signs. "
-    #     "Read the visible sign panels and select the panel whose label includes Area {area}. "
-    #     "Area ranges include all areas within the range, and comma-separated labels include all listed areas. "
-    #     "Use only the arrow attached to the selected panel. "
-    #     "Treat the selected arrow as the route to follow at the next relevant junction, not necessarily as an immediate turn. "
-    #     "Use the current scene geometry to approach and enter the indicated corridor. "
-    #     "If the sign is no longer visible, remember its direction until that route choice has been completed. "
-    #     "Avoid collisions and stop only after reaching Area {area}."
-    # ),
-    # 2: (
-    #     "Navigate safely to Area {area} using visible directional signs. "
-    #     "Rule 1: IF signs are visible, select the panel whose label includes Area {area}, including ranges and comma-separated lists. "
-    #     "Rule 2: Follow only the arrow attached to the matching panel. "
-    #     "Rule 3: IF the sign leaves view, remember its direction until the related junction is crossed. "
-    #     "Rule 4: Approach the junction and turn only when the indicated corridor becomes reachable. "
-    #     "Rule 5: After crossing the junction, search for the next relevant sign. "
-    #     "Rule 6: Avoid obstacles and stop only after reaching Area {area}."
-    # ),
-    # 3: (
-    #     "TASK_TYPE: Sign guided navigation "
-    #     "TARGET_AREA: Area {area} "
-    #     "GOAL: Reach the target safely "
-    #     "SIGN_SELECTION: Select the panel whose label includes the target area "
-    #     "AREA_MATCHING: Ranges include all intermediate areas and lists include all listed areas "
-    #     "ARROW_BINDING: Follow only the arrow attached to the matched panel "
-    #     "MEMORY_WRITE: Store the matched arrow direction as the active route "
-    #     "MEMORY_RETAIN: Keep the active route even after the sign leaves view "
-    #     "MEMORY_USE: Apply the active route at the next relevant junction "
-    #     "TURN_TIMING: Turn only when the indicated corridor is reachable "
-    #     "STATIC_CONTROL: Avoid walls and static obstacles "
-    #     "STOP_CONDITION: Stop only after reaching the target area"
-    # ),
 }
 
 _prompt_lock = threading.Lock()
@@ -240,11 +212,12 @@ _DASHBOARD_HTML = """\
          display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 10px; }
   h1 { color: #7fd36b; font-size: 1.15rem; letter-spacing: 1px; }
   .grid { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; }
-  .views { min-height: calc(100vh - 50px); display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; align-items: flex-start; }
+  .views { min-height: calc(100vh - 50px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: flex-start; }
   .camera { background: #050507; border: 1px solid #303038; border-radius: 8px; overflow: hidden; }
   .camera .title { padding: 5px 8px; color: #aeb3bd; background: #15161b; border-bottom: 1px solid #303038; font-size: 0.72rem; text-transform: uppercase; }
   .camera img { width: 100%; height: auto; object-fit: contain; display: block; }
   .camera.hidden { display: none; }
+  #seg_camera { grid-column: 1 / -1; }
   .panel { background: #191a20; border: 1px solid #303038; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .label { color: #8d9098; font-size: 0.75rem; text-transform: uppercase; }
@@ -262,7 +235,7 @@ _DASHBOARD_HTML = """\
   .save-status { color: #8d9098; font-size: 0.72rem; line-height: 1.35; overflow-wrap: anywhere; }
   .save-status.ok { color: #7fd36b; }
   .save-status.err { color: #e36060; }
-  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .views { min-height: auto; } .camera img { height: auto; } }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .views { min-height: auto; grid-template-columns: 1fr; } .camera img { height: auto; } }
 </style>
 </head>
 <body>
@@ -270,6 +243,7 @@ _DASHBOARD_HTML = """\
 <div class="grid">
   <div class="views">
     <div class="camera"><div class="title">ego view / model input</div><img id="cam" src="/image" alt="ego view"></div>
+    <div class="camera hidden" id="grounding_camera"><div class="title">sign grounding bbox / E1-C</div><img id="grounding_cam" src="/image/sign_grounding" alt="sign grounding bbox"></div>
     <div class="camera hidden" id="seg_camera"><div class="title">segmented ego view / SAM3</div><img id="seg_cam" src="/image/segmented_ego_view" alt="segmented ego view"></div>
   </div>
   <div class="panel">
@@ -280,6 +254,10 @@ _DASHBOARD_HTML = """\
     <div class="row"><span class="label">Speed</span><span class="value" id="speed">-</span></div>
     <div class="row"><span class="label">Action Step</span><span class="value" id="action_step">-</span></div>
     <div class="row"><span class="label">Cam to Input</span><span class="value" id="latency">-</span></div>
+    <div class="row"><span class="label">Action Infer</span><span class="value" id="action_infer">-</span></div>
+    <div class="row"><span class="label">Ground Infer</span><span class="value" id="ground_infer">-</span></div>
+    <div class="row"><span class="label">Model Total</span><span class="value" id="model_total">-</span></div>
+    <div class="row"><span class="label">Grounding</span><span class="value" id="grounding">-</span></div>
     <div class="row"><span class="label">SAM3</span><span class="value" id="sam3">-</span></div>
     <div class="label">Linear cmd</div>
     <div class="row"><span class="value" id="vx">-</span></div>
@@ -315,6 +293,13 @@ es.onmessage = e => {
       ? d.action_step + " / " + (d.action_horizon - 1)
       : (d.action_step ?? "-");
   document.getElementById("latency").textContent = d.camera_to_model_input_ms !== undefined ? d.camera_to_model_input_ms.toFixed(1) + " ms" : "-";
+  document.getElementById("action_infer").textContent = d.action_inference_ms !== undefined ? d.action_inference_ms.toFixed(1) + " ms" : "-";
+  document.getElementById("ground_infer").textContent = d.grounding_inference_ms !== undefined ? d.grounding_inference_ms.toFixed(1) + " ms" : "-";
+  document.getElementById("model_total").textContent = d.model_total_ms !== undefined ? d.model_total_ms.toFixed(1) + " ms" : "-";
+  document.getElementById("grounding").textContent =
+    d.sign_grounding && d.sign_grounding.ok
+      ? "status " + d.sign_grounding.pred_status + " / P " + d.sign_grounding.found_probability.toFixed(3)
+      : (d.sign_grounding && d.sign_grounding.error ? "err" : "-");
   document.getElementById("sam3").textContent =
     d.sam3_timing_ms && d.sam3_timing_ms.wall_ms !== undefined
       ? d.sam3_timing_ms.wall_ms.toFixed(1) + " ms"
@@ -327,6 +312,17 @@ es.onmessage = e => {
 setInterval(() => {
   const t = Date.now();
   document.getElementById("cam").src = "/image?" + t;
+  fetch("/image/sign_grounding?" + t, { method: "HEAD" })
+    .then(resp => {
+      const box = document.getElementById("grounding_camera");
+      if (resp.status === 200) {
+        box.classList.remove("hidden");
+        document.getElementById("grounding_cam").src = "/image/sign_grounding?" + t;
+      } else {
+        box.classList.add("hidden");
+      }
+    })
+    .catch(() => document.getElementById("grounding_camera").classList.add("hidden"));
   fetch("/image/segmented_ego_view?" + t, { method: "HEAD" })
     .then(resp => {
       const box = document.getElementById("seg_camera");
@@ -757,6 +753,151 @@ def select_vel_cmd_step(vel_cmd, action_step: int) -> tuple[float, float, int, i
     return vx, wz, idx, horizon
 
 
+def rec_to_dtype(x: Any, dtype: torch.dtype) -> Any:
+    if isinstance(x, torch.Tensor) and torch.is_floating_point(x):
+        return x.to(dtype=dtype)
+    if isinstance(x, dict) or hasattr(x, "items"):
+        return {key: rec_to_dtype(value, dtype) for key, value in x.items()}
+    if isinstance(x, list):
+        return [rec_to_dtype(value, dtype) for value in x]
+    return x
+
+
+def cxcywh_to_xyxy(box: np.ndarray) -> np.ndarray:
+    cx, cy, width, height = box.astype(np.float32)
+    return np.clip(
+        np.array(
+            [cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2],
+            dtype=np.float32,
+        ),
+        0.0,
+        1.0,
+    )
+
+
+def pixel_box(box: np.ndarray, width: int, height: int) -> tuple[int, int, int, int]:
+    return (
+        round(float(box[0]) * width),
+        round(float(box[1]) * height),
+        round(float(box[2]) * width),
+        round(float(box[3]) * height),
+    )
+
+
+def load_overlay_font(image: Image.Image) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    font_size = max(24, round(min(image.size) / 18))
+    for font_path in (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    ):
+        if Path(font_path).is_file():
+            return ImageFont.truetype(font_path, font_size)
+    return ImageFont.load_default()
+
+
+def draw_grounding_result(
+    image_np: np.ndarray,
+    pred_xyxy: np.ndarray,
+    pred_status: int,
+    found_probability: float,
+    target_area: int,
+) -> np.ndarray:
+    result = Image.fromarray(image_np.astype(np.uint8), mode="RGB").copy()
+    draw = ImageDraw.Draw(result)
+    line_width = max(2, round(min(result.size) / 150))
+    if pred_status != 0:
+        draw.rectangle(pixel_box(pred_xyxy, result.width, result.height), outline=(255, 40, 40), width=line_width)
+
+    status_label = "no bbox" if pred_status == 0 else str(pred_status)
+    label = f"goal: area {target_area}\nbbox status: {status_label}\nP(found): {found_probability:.3f}"
+    font = load_overlay_font(result)
+    spacing = max(4, round(min(result.size) / 120))
+    text_box = draw.multiline_textbbox((0, 0), label, font=font, spacing=spacing)
+    text_width = text_box[2] - text_box[0]
+    text_height = text_box[3] - text_box[1]
+    padding = max(12, round(min(result.size) / 60))
+    x0 = padding
+    y0 = result.height - text_height - padding * 3
+    status_color = (46, 204, 113) if pred_status != 0 else (255, 80, 80)
+    draw.rectangle(
+        (x0, y0, x0 + text_width + padding * 2, y0 + text_height + padding * 2),
+        fill=(0, 0, 0),
+    )
+    draw.rectangle(
+        (x0, y0, x0 + max(6, padding // 2), y0 + text_height + padding * 2),
+        fill=status_color,
+    )
+    draw.multiline_text(
+        (x0 + padding, y0 + padding),
+        label,
+        font=font,
+        fill=status_color,
+        spacing=spacing,
+    )
+    return np.asarray(result, dtype=np.uint8)
+
+
+def predict_sign_grounding(policy, obs: dict, target_area: int, found_status_id: int = 1) -> tuple[np.ndarray, dict]:
+    video = {
+        key: value[0]
+        for key, value in obs["video"].items()
+        if key in policy.modality_configs["video"].modality_keys
+    }
+    state = {
+        key: value[0]
+        for key, value in obs["state"].items()
+        if key in policy.modality_configs["state"].modality_keys
+    }
+    language = obs["language"][policy.language_key][0][0]
+    vla_step = VLAStepData(
+        images=video,
+        states=state,
+        actions={},
+        text=language,
+        embodiment=policy.embodiment_tag,
+        metadata=APPEND_QUERY_MARKER_METADATA,
+    )
+    processed = policy.processor([{"type": MessageType.EPISODE_STEP.value, "content": vla_step}])
+    collated_inputs = policy.collate_fn([processed])["inputs"]
+    collated_inputs.pop("gt_sign_bbox_cxcywh", None)
+    collated_inputs.pop("gt_sign_status", None)
+    collated_inputs = rec_to_dtype(collated_inputs, dtype=torch.bfloat16)
+
+    with torch.inference_mode():
+        backbone_inputs, action_inputs = policy.model.prepare_input(collated_inputs)
+        backbone_outputs = policy.model.backbone(backbone_inputs)
+        grounding = policy.model._compute_sign_grounding(backbone_outputs, action_inputs)
+    if grounding is None:
+        raise RuntimeError("model did not produce sign-grounding outputs")
+
+    pred_cxcywh = grounding.sign_bbox_cxcywh[0].float().cpu().numpy()
+    pred_xyxy = cxcywh_to_xyxy(pred_cxcywh)
+    logits = grounding.sign_status_logits[0].float().cpu()
+    probabilities = torch.softmax(logits, dim=-1).numpy()
+    pred_status = int(probabilities.argmax())
+    found_idx = min(max(0, int(found_status_id)), len(probabilities) - 1)
+    ego_frame = obs["video"].get("ego_view")
+    if ego_frame is None:
+        ego_frame = next(iter(obs["video"].values()))
+    image_np = ego_frame[0, -1]
+    rendered = draw_grounding_result(
+        image_np,
+        pred_xyxy,
+        pred_status,
+        float(probabilities[found_idx]),
+        target_area,
+    )
+    telemetry = {
+        "ok": True,
+        "pred_status": pred_status,
+        "found_probability": float(probabilities[found_idx]),
+        "pred_bbox_cxcywh": pred_cxcywh.tolist(),
+        "pred_bbox_xyxy": pred_xyxy.tolist(),
+    }
+    return rendered, telemetry
+
+
 def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmented_view_key: str = DEFAULT_SEGMENTED_VIEW_KEY):
     print(f"[GR00T] connected from {addr}")
     policy.reset()
@@ -858,7 +999,30 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 video_keys,
                 video_horizon,
             )
+            action_start_t = time.time()
             action, _ = policy.get_action(obs)
+            action_inference_ms = (time.time() - action_start_t) * 1000.0
+            sign_grounding = None
+            grounding_inference_ms = None
+            grounding_start_t = None
+            try:
+                grounding_start_t = time.time()
+                grounding_np, sign_grounding = predict_sign_grounding(
+                    policy,
+                    obs,
+                    prompt_state["target_area"],
+                )
+                grounding_inference_ms = (time.time() - grounding_start_t) * 1000.0
+                images_b64[GROUNDING_VIEW_KEY] = encode_image_b64(grounding_np)
+            except Exception as exc:
+                grounding_inference_ms = (
+                    (time.time() - grounding_start_t) * 1000.0
+                    if grounding_start_t is not None
+                    else None
+                )
+                sign_grounding = {"ok": False, "error": str(exc)}
+                print(f"[GROUNDING] Warning: failed to render bbox visualization: {exc}")
+            model_total_ms = action_inference_ms + (grounding_inference_ms or 0.0)
             vx, wz, selected_step, action_horizon = select_vel_cmd_step(action["vel_cmd"], action_step)
             resp = {
                 "linear": vx,
@@ -882,7 +1046,11 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                     "action_horizon": action_horizon,
                     "camera_to_model_input_ms": camera_to_model_input_ms,
                     "per_view_camera_latency_ms": per_view_camera_latency_ms,
+                    "action_inference_ms": action_inference_ms,
+                    "grounding_inference_ms": grounding_inference_ms,
+                    "model_total_ms": model_total_ms,
                     "sam3_timing_ms": sam3_timing,
+                    "sign_grounding": sign_grounding,
                 },
             )
             latency_text = (
@@ -894,7 +1062,18 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 f"[{step:05d}] action_step={selected_step}/{action_horizon - 1} "
                 f"v={vx:+.3f} w={wz:+.3f} "
                 f"speed={speed:.3f} prompt_v{prompt_state['prompt_version']} "
-                f"AREA_{prompt_state['target_area']} {latency_text}"
+                f"AREA_{prompt_state['target_area']} {latency_text} "
+                f"action={action_inference_ms:.1f}ms total={model_total_ms:.1f}ms"
+                + (
+                    f" grounding={grounding_inference_ms:.1f}ms"
+                    if grounding_inference_ms is not None
+                    else ""
+                )
+                + (
+                    f" grounding_status={sign_grounding.get('pred_status')}"
+                    if isinstance(sign_grounding, dict) and sign_grounding.get("ok")
+                    else ""
+                )
                 + (
                     f" sam3={sam3_timing.get('wall_ms', 0.0):.1f}ms"
                     if isinstance(sam3_timing, dict)

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-MODEL_PATH=""
+MODEL_PATH="/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/checkpoint-100000/"
 DEVICE="${DEVICE:-cuda:0}"
 WEB_PORT="${WEB_PORT:-9090}"
-PROMPT_VERSION="${PROMPT_VERSION:-2}"
+PROMPT_VERSION="${PROMPT_VERSION:-1}"
 TARGET_AREA="${TARGET_AREA:-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

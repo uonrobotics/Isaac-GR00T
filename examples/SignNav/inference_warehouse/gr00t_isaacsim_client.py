@@ -32,7 +32,6 @@ RESET_OBS_WARMUP_FRAMES = 8
 RESET_SETTLE_SEC = 1.0
 TIMING_LOG_EVERY = 10
 TIMING_WINDOW = 50
-FIXED_RESET_POSE = {"x": 7.5, "y": 0.8, "yaw": 1.25}
 ANSI_RESET = "\033[0m"
 ANSI_BOLD = "\033[1m"
 ANSI_CYAN = "\033[96m"
@@ -168,9 +167,7 @@ def main():
     cmd_seq = 0
     prev_linear = 0.0
     prev_angular = 0.0
-    random_reset_requested = threading.Event()
-    fixed_reset_requested = threading.Event()
-    fixed_spawn_pose = None
+    spawn_reset_requested = threading.Event()
     loop_durations = deque(maxlen=TIMING_WINDOW)
     obs_durations = deque(maxlen=TIMING_WINDOW)
     infer_durations = deque(maxlen=TIMING_WINDOW)
@@ -178,20 +175,16 @@ def main():
     sleep_durations = deque(maxlen=TIMING_WINDOW)
 
     def keyboard_listener():
-        print("[CLIENT] press r + Enter for random reset; f + Enter for fixed-pose reset")
+        print("[CLIENT] press s + Enter for spawn reset")
         while True:
             try:
                 key = input().strip().lower()
             except EOFError:
                 break
-            if key == "r":
-                print("\n[CLIENT] random reset requested\n")
+            if key == "s":
+                print("\n[CLIENT] spawn reset requested\n")
                 send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
-                random_reset_requested.set()
-            elif key == "f":
-                print("\n[CLIENT] fixed-pose reset requested\n")
-                send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
-                fixed_reset_requested.set()
+                spawn_reset_requested.set()
 
     threading.Thread(target=keyboard_listener, daemon=True, name="keyboard-reset").start()
 
@@ -199,7 +192,7 @@ def main():
         print(f"[CLIENT] reset: forcing cmd_vel=0 ({label})")
         send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
 
-    def reset_episode(reset_kind: str = "random"):
+    def reset_episode():
         nonlocal current_episode_id
         force_stop_for_reset("before sim reset")
         if args.no_reset:
@@ -207,21 +200,6 @@ def main():
             if not obs_resp.get("ok", False):
                 raise RuntimeError(f"initial get_obs failed: {obs_resp}")
             pose = obs_resp.get("pose")
-        elif reset_kind == "fixed":
-            if fixed_spawn_pose is None:
-                raise RuntimeError("fixed-pose reset requested before fixed pose was configured")
-            reset_resp = sim.request(
-                {
-                    "cmd": "reset_to_pose",
-                    "x": fixed_spawn_pose["x"],
-                    "y": fixed_spawn_pose["y"],
-                    "yaw": fixed_spawn_pose["yaw"],
-                    "label": "fixed_pose",
-                }
-            )
-            if not reset_resp.get("ok", False):
-                raise RuntimeError(f"fixed sim reset failed: {reset_resp}")
-            pose = reset_resp.get("pose")
         else:
             reset_resp = sim.request({"cmd": "reset"})
             if not reset_resp.get("ok", False):
@@ -242,13 +220,13 @@ def main():
         if isinstance(pose, dict):
             print(
                 f"[CLIENT] reset: episode {current_episode_id} ready "
-                f"kind={reset_kind} pose=({pose['x']:.2f},{pose['y']:.2f},{pose['yaw']:.2f}); "
+                f"kind=spawn pose=({pose['x']:.2f},{pose['y']:.2f},{pose['yaw']:.2f}); "
                 "inference may resume"
             )
         else:
             print(
                 f"[CLIENT] reset: episode {current_episode_id} ready "
-                f"kind={reset_kind}; inference may resume"
+                "kind=spawn; inference may resume"
             )
         return pose
 
@@ -256,23 +234,16 @@ def main():
         sim.connect()
         infer.connect()
         cmd._connect()
-        fixed_spawn_pose = dict(FIXED_RESET_POSE)
-        print(
-            f"[CLIENT] fixed-pose reset target: "
-            f"({fixed_spawn_pose['x']:.2f},{fixed_spawn_pose['y']:.2f},{fixed_spawn_pose['yaw']:.2f})"
-        )
-        reset_episode("random")
+        reset_episode()
 
         while True:
-            if fixed_reset_requested.is_set() or random_reset_requested.is_set():
-                reset_kind = "fixed" if fixed_reset_requested.is_set() else "random"
-                fixed_reset_requested.clear()
-                random_reset_requested.clear()
+            if spawn_reset_requested.is_set():
+                spawn_reset_requested.clear()
                 try:
-                    reset_episode(reset_kind)
+                    reset_episode()
                     prev_linear = 0.0
                     prev_angular = 0.0
-                    print(f"[CLIENT] {reset_kind} reset complete\n")
+                    print("[CLIENT] spawn reset complete\n")
                 except Exception as e:
                     print(f"[CLIENT] reset failed: {e}")
                     force_stop_for_reset("reset failed")

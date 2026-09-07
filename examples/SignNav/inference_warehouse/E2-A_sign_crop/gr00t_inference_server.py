@@ -36,13 +36,14 @@ import json
 from pathlib import Path
 import queue
 import socket
-import sys
+import subprocess
 import threading
 import time
+from typing import Any
 from urllib.parse import urlparse
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from gr00t.policy.gr00t_policy import Gr00tPolicy
 from gr00t.data.embodiment_tags import EmbodimentTag
@@ -52,52 +53,34 @@ LISTEN_PORT = 5000
 WEB_PORT = 9090
 WARMUP_STEPS = 4
 ACTION_STEP_IDX = 1
-DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[1] / "modality_config_signnav.py"
+DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[2] / "modality_config_signnav.py"
 DEFAULT_TARGET_AREA = 1
 DEFAULT_SIGN_SEG_GENERATOR = Path(
     "/home/sujin/workspace/physical-ai/sign_seg_test/jobs/segmented_rgb_generator.py"
 )
-DEFAULT_SEGMENTED_VIEW_KEY = "segmented_ego_view"
-DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parent / "script" / "third_party" / "sam3"
+DEFAULT_SAM3_QWEN3_ROOT = Path(
+    "/home/sujin/workspace/physical-ai/sign_seg_test/sam3_qwen3-test"
+)
+DEFAULT_SAM3_QWEN3_MODULE = DEFAULT_SAM3_QWEN3_ROOT / "sam3_qwen3_test.py"
+DEFAULT_SAM3_QWEN3_WORKER = Path(__file__).resolve().parent / "sam3_qwen3_worker.py"
+DEFAULT_SAM3_QWEN3_PYTHON = DEFAULT_SAM3_QWEN3_ROOT / ".venv" / "bin" / "python"
+DEFAULT_SEGMENTED_VIEW_KEY = "sign_crop"
+DEFAULT_TARGET_BBOX_VIEW_KEY = "target_bbox"
+DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parents[1] / "script" / "third_party" / "sam3"
+_bbox_lock = threading.Lock()
+_bbox_state = {
+    "bbox_status": 0.0,
+    "bbox_x1": 0.0,
+    "bbox_y1": 0.0,
+    "bbox_x2": 0.0,
+    "bbox_y2": 0.0,
+}
 
 PROMPT_VERSION = 1 
 PROMPT_TEMPLATES = {
     1: (
-        "Find the sign panel containing Area {area} and use it to choose the navigation action. "
+       "Navigate to {area}. Use the provided sign image and its location in the ego view as guidance, and follow the indicated direction. If no sign is provided, continue navigating from the ego view."
     )
-    # 1: (
-    #     "Your goal is to navigate safely to Area {area} using directional signs. "
-    #     "Read the visible sign panels and select the panel whose label includes Area {area}. "
-    #     "Area ranges include all areas within the range, and comma-separated labels include all listed areas. "
-    #     "Use only the arrow attached to the selected panel. "
-    #     "Treat the selected arrow as the route to follow at the next relevant junction, not necessarily as an immediate turn. "
-    #     "Use the current scene geometry to approach and enter the indicated corridor. "
-    #     "If the sign is no longer visible, remember its direction until that route choice has been completed. "
-    #     "Avoid collisions and stop only after reaching Area {area}."
-    # ),
-    # 2: (
-    #     "Navigate safely to Area {area} using visible directional signs. "
-    #     "Rule 1: IF signs are visible, select the panel whose label includes Area {area}, including ranges and comma-separated lists. "
-    #     "Rule 2: Follow only the arrow attached to the matching panel. "
-    #     "Rule 3: IF the sign leaves view, remember its direction until the related junction is crossed. "
-    #     "Rule 4: Approach the junction and turn only when the indicated corridor becomes reachable. "
-    #     "Rule 5: After crossing the junction, search for the next relevant sign. "
-    #     "Rule 6: Avoid obstacles and stop only after reaching Area {area}."
-    # ),
-    # 3: (
-    #     "TASK_TYPE: Sign guided navigation "
-    #     "TARGET_AREA: Area {area} "
-    #     "GOAL: Reach the target safely "
-    #     "SIGN_SELECTION: Select the panel whose label includes the target area "
-    #     "AREA_MATCHING: Ranges include all intermediate areas and lists include all listed areas "
-    #     "ARROW_BINDING: Follow only the arrow attached to the matched panel "
-    #     "MEMORY_WRITE: Store the matched arrow direction as the active route "
-    #     "MEMORY_RETAIN: Keep the active route even after the sign leaves view "
-    #     "MEMORY_USE: Apply the active route at the next relevant junction "
-    #     "TURN_TIMING: Turn only when the indicated corridor is reachable "
-    #     "STATIC_CONTROL: Avoid walls and static obstacles "
-    #     "STOP_CONDITION: Stop only after reaching the target area"
-    # ),
 }
 
 _prompt_lock = threading.Lock()
@@ -240,7 +223,7 @@ _DASHBOARD_HTML = """\
          display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 10px; }
   h1 { color: #7fd36b; font-size: 1.15rem; letter-spacing: 1px; }
   .grid { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; }
-  .views { min-height: calc(100vh - 50px); display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; align-items: flex-start; }
+  .views { min-height: calc(100vh - 50px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: flex-start; }
   .camera { background: #050507; border: 1px solid #303038; border-radius: 8px; overflow: hidden; }
   .camera .title { padding: 5px 8px; color: #aeb3bd; background: #15161b; border-bottom: 1px solid #303038; font-size: 0.72rem; text-transform: uppercase; }
   .camera img { width: 100%; height: auto; object-fit: contain; display: block; }
@@ -262,7 +245,7 @@ _DASHBOARD_HTML = """\
   .save-status { color: #8d9098; font-size: 0.72rem; line-height: 1.35; overflow-wrap: anywhere; }
   .save-status.ok { color: #7fd36b; }
   .save-status.err { color: #e36060; }
-  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .views { min-height: auto; } .camera img { height: auto; } }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .views { min-height: auto; grid-template-columns: 1fr; } .camera img { height: auto; } }
 </style>
 </head>
 <body>
@@ -270,7 +253,8 @@ _DASHBOARD_HTML = """\
 <div class="grid">
   <div class="views">
     <div class="camera"><div class="title">ego view / model input</div><img id="cam" src="/image" alt="ego view"></div>
-    <div class="camera hidden" id="seg_camera"><div class="title">segmented ego view / SAM3</div><img id="seg_cam" src="/image/segmented_ego_view" alt="segmented ego view"></div>
+    <div class="camera hidden" id="bbox_camera"><div class="title">selected bbox / SAM3 + Qwen3</div><img id="bbox_cam" src="/image/target_bbox" alt="selected bbox"></div>
+    <div class="camera hidden" id="crop_camera"><div class="title">sign crop / GR00T input</div><img id="crop_cam" src="/image/sign_crop" alt="sign crop"></div>
   </div>
   <div class="panel">
     <div class="row"><span class="label">Step</span><span class="value" id="step">-</span></div>
@@ -280,7 +264,9 @@ _DASHBOARD_HTML = """\
     <div class="row"><span class="label">Speed</span><span class="value" id="speed">-</span></div>
     <div class="row"><span class="label">Action Step</span><span class="value" id="action_step">-</span></div>
     <div class="row"><span class="label">Cam to Input</span><span class="value" id="latency">-</span></div>
-    <div class="row"><span class="label">SAM3</span><span class="value" id="sam3">-</span></div>
+    <div class="row"><span class="label">Target Marker</span><span class="value" id="target_marker">-</span></div>
+    <div class="row"><span class="label">BBox State</span><span class="value" id="bbox_state">-</span></div>
+    <div class="row"><span class="label">SAM3+Qwen3</span><span class="value" id="sam3">-</span></div>
     <div class="label">Linear cmd</div>
     <div class="row"><span class="value" id="vx">-</span></div>
     <div class="bar-wrap"><div class="bar-center"></div><div class="bar" id="vx_bar"></div></div>
@@ -315,6 +301,15 @@ es.onmessage = e => {
       ? d.action_step + " / " + (d.action_horizon - 1)
       : (d.action_step ?? "-");
   document.getElementById("latency").textContent = d.camera_to_model_input_ms !== undefined ? d.camera_to_model_input_ms.toFixed(1) + " ms" : "-";
+  const bbox = d.sam3_timing_ms && d.sam3_timing_ms.bbox_state;
+  document.getElementById("target_marker").textContent =
+    d.sam3_timing_ms && d.sam3_timing_ms.matched_sign_text
+      ? d.sam3_timing_ms.matched_sign_text + " / " + (d.sam3_timing_ms.arrow_direction ?? "-")
+      : "-";
+  document.getElementById("bbox_state").textContent =
+    bbox
+      ? [bbox.bbox_status, bbox.bbox_x1, bbox.bbox_y1, bbox.bbox_x2, bbox.bbox_y2].map(v => Number(v).toFixed(3)).join(", ")
+      : "-";
   document.getElementById("sam3").textContent =
     d.sam3_timing_ms && d.sam3_timing_ms.wall_ms !== undefined
       ? d.sam3_timing_ms.wall_ms.toFixed(1) + " ms"
@@ -327,17 +322,28 @@ es.onmessage = e => {
 setInterval(() => {
   const t = Date.now();
   document.getElementById("cam").src = "/image?" + t;
-  fetch("/image/segmented_ego_view?" + t, { method: "HEAD" })
+  fetch("/image/target_bbox?" + t, { method: "HEAD" })
     .then(resp => {
-      const box = document.getElementById("seg_camera");
+      const box = document.getElementById("bbox_camera");
       if (resp.status === 200) {
         box.classList.remove("hidden");
-        document.getElementById("seg_cam").src = "/image/segmented_ego_view?" + t;
+        document.getElementById("bbox_cam").src = "/image/target_bbox?" + t;
       } else {
         box.classList.add("hidden");
       }
     })
-    .catch(() => document.getElementById("seg_camera").classList.add("hidden"));
+    .catch(() => document.getElementById("bbox_camera").classList.add("hidden"));
+  fetch("/image/sign_crop?" + t, { method: "HEAD" })
+    .then(resp => {
+      const box = document.getElementById("crop_camera");
+      if (resp.status === 200) {
+        box.classList.remove("hidden");
+        document.getElementById("crop_cam").src = "/image/sign_crop?" + t;
+      } else {
+        box.classList.add("hidden");
+      }
+    })
+    .catch(() => document.getElementById("crop_camera").classList.add("hidden"));
 }, 150);
 document.getElementById("save_ego").onclick = async () => {
   const btn = document.getElementById("save_ego");
@@ -549,128 +555,354 @@ class Sam3SegmentedViewGenerator:
     def __init__(
         self,
         *,
-        generator_path: str | Path,
+        pipeline_module_path: str | Path,
+        worker_path: str | Path,
+        worker_python: str | Path,
         device: str,
         prompt: str,
-        confidence: float,
-        min_mask_area: int,
-        checkpoint_path: str | None,
-        bpe_path: str | None,
-        output_kind: str,
-        merge_gap_ratio: float,
-        merge_gap_pixels: int,
-        bbox_padding_ratio: float,
-        bbox_padding_pixels: int,
-        bbox_line_thickness: int,
         min_box_area_ratio: float,
-        min_box_width_ratio: float,
         min_box_height_ratio: float,
+        sam_model_id: str,
+        qwen_model_id: str,
+        sam_threshold: float,
+        sam_mask_threshold: float,
+        nms_iou: float,
+        merged_containment_threshold: float,
+        merged_child_max_iou: float,
+        size_dominance_ratio: float,
+        crop_padding_ratio: float,
+        crop_upscale: float,
+        qwen_max_new_tokens: int,
+        qwen_max_pixels: int,
+        dtype: str,
     ):
-        generator_path = Path(generator_path).expanduser().resolve()
-        if not generator_path.exists():
-            raise FileNotFoundError(f"SAM3 segmented RGB generator not found: {generator_path}")
-        spec = importlib.util.spec_from_file_location("signnav_segmented_rgb_generator", generator_path)
-        if spec is None or spec.loader is None:
-            raise RuntimeError(f"failed to load SAM3 generator module: {generator_path}")
-        self.generator = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.generator)
+        pipeline_module_path = Path(pipeline_module_path).expanduser().resolve()
+        if not pipeline_module_path.exists():
+            raise FileNotFoundError(f"SAM3+Qwen3 pipeline module not found: {pipeline_module_path}")
+        worker_path = Path(worker_path).expanduser().resolve()
+        worker_python = Path(worker_python).expanduser().resolve()
+        if not worker_path.exists():
+            raise FileNotFoundError(f"SAM3+Qwen3 worker not found: {worker_path}")
+        if not worker_python.exists():
+            raise FileNotFoundError(f"SAM3+Qwen3 worker python not found: {worker_python}")
 
-        if DEFAULT_SAM3_THIRD_PARTY_ROOT.exists():
-            sys.path.insert(0, str(DEFAULT_SAM3_THIRD_PARTY_ROOT))
-        from signseg_benchmark.runners.sam3 import Sam3TextRunner
-
-        sam3_device = normalize_sam3_device(device)
-        config = {
-            "device": sam3_device,
-            "text_prompt": prompt,
-            "confidence": confidence,
-            "min_mask_area": min_mask_area,
-        }
-        if checkpoint_path:
-            config["checkpoint_path"] = checkpoint_path
-        if bpe_path:
-            config["bpe_path"] = bpe_path
-
-        print(f"[SAM3] Loading segmented ego-view generator on {sam3_device} prompt={prompt!r}")
-        self.runner = Sam3TextRunner(config)
-        self.output_kind = output_kind
-        self.merge_gap_ratio = merge_gap_ratio
-        self.merge_gap_pixels = merge_gap_pixels
-        self.bbox_padding_ratio = bbox_padding_ratio
-        self.bbox_padding_pixels = bbox_padding_pixels
-        self.bbox_line_thickness = bbox_line_thickness
+        worker_device = "cuda" if str(device).startswith("cuda") else str(device)
+        self.device = "cuda" if str(device).startswith("cuda") else str(device)
+        worker_log_dir = Path(__file__).resolve().parents[4] / ".logs" / "signnav_inference_warehouse"
+        worker_log_dir.mkdir(parents=True, exist_ok=True)
+        self.worker_log_path = worker_log_dir / "e2a_sam3_qwen3_worker.log"
+        self.worker_log = self.worker_log_path.open("a", buffering=1)
+        self.worker_log.write(f"\n\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] starting worker\n")
+        self.worker = subprocess.Popen(
+            [
+                str(worker_python),
+                str(worker_path),
+                "--pipeline-module-path",
+                str(pipeline_module_path),
+                "--sam-model-id",
+                sam_model_id,
+                "--qwen-model-id",
+                qwen_model_id,
+                "--device",
+                worker_device,
+                "--dtype",
+                dtype,
+                "--qwen-max-pixels",
+                str(qwen_max_pixels),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=self.worker_log,
+            text=True,
+            bufsize=1,
+        )
+        self.prompt = prompt
         self.min_box_area_ratio = min_box_area_ratio
-        self.min_box_width_ratio = min_box_width_ratio
         self.min_box_height_ratio = min_box_height_ratio
-        print(f"[SAM3] Ready. output_kind={output_kind}")
-
-    def __call__(self, image_np: np.ndarray) -> tuple[np.ndarray, dict]:
-        import cv2
-
-        image = Image.fromarray(image_np.astype(np.uint8), mode="RGB")
-        prediction = self.runner.predict(image)
-        prediction = self.generator.filter_small_instances(
-            prediction,
-            image.width,
-            image.height,
-            self.min_box_area_ratio,
-            self.min_box_width_ratio,
-            self.min_box_height_ratio,
+        self.sam_threshold = sam_threshold
+        self.sam_mask_threshold = sam_mask_threshold
+        self.nms_iou = nms_iou
+        self.merged_containment_threshold = merged_containment_threshold
+        self.merged_child_max_iou = merged_child_max_iou
+        self.size_dominance_ratio = size_dominance_ratio
+        self.crop_padding_ratio = crop_padding_ratio
+        self.crop_upscale = crop_upscale
+        self.qwen_max_new_tokens = qwen_max_new_tokens
+        self.sam_model_id = sam_model_id
+        self.qwen_model_id = qwen_model_id
+        self._job_queue: queue.Queue = queue.Queue(maxsize=1)
+        self._result_lock = threading.Lock()
+        self._latest_crop_np: np.ndarray | None = None
+        self._latest_bbox_np: np.ndarray | None = None
+        self._latest_timing: dict[str, Any] = {"status": "warming", "bbox_state": get_bbox_state()}
+        threading.Thread(target=self._worker_loop, daemon=True, name="sam3-qwen3-target-crop").start()
+        print(
+            "[SAM3+Qwen3] Worker started. "
+            "GR00T reuses the latest selected crop/bbox until a new one is ready. "
+            f"log={self.worker_log_path}"
         )
 
-        if self.output_kind == "red-box":
-            output = np.asarray(image.convert("RGB")).copy()
-            gap_pixels = max(
-                float(self.merge_gap_pixels),
-                self.merge_gap_ratio * max(image.width, image.height),
-            )
-            for box in self.generator.grouped_boxes(prediction, image.width, image.height, gap_pixels):
-                x1, y1, x2, y2 = self.generator.expand_box(
-                    box,
-                    image.width,
-                    image.height,
-                    self.bbox_padding_ratio,
-                    self.bbox_padding_pixels,
-                )
-                cv2.rectangle(output, (x1, y1), (x2, y2), (255, 0, 0), self.bbox_line_thickness)
-        elif self.output_kind == "overlay":
-            output = np.asarray(image.convert("RGB")).copy()
-            overlay = output.copy()
-            for idx, (box, mask, score) in enumerate(
-                zip(prediction.boxes, prediction.masks, prediction.scores, strict=True)
-            ):
-                color = np.array(
-                    ((151 * idx + 180) % 255, (89 * idx + 110) % 255, (37 * idx + 50) % 255),
-                    dtype=np.uint8,
-                )
-                overlay[mask] = color
-                x1, y1, x2, y2 = box.astype(int)
-                cv2.rectangle(output, (x1, y1), (x2, y2), color.tolist(), 2)
-                cv2.putText(
-                    output,
-                    f"sam3 {float(score):.2f}",
-                    (x1, max(18, y1 - 5)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    color.tolist(),
-                    1,
-                    cv2.LINE_AA,
-                )
-            output = cv2.addWeighted(overlay, 0.35, output, 0.65, 0)
-        elif self.output_kind == "masked":
-            rgb = np.asarray(image.convert("RGB"))
-            mask = self.generator.union_mask(prediction, image.height, image.width)
-            output = np.zeros_like(rgb)
-            output[mask] = rgb[mask]
-        elif self.output_kind == "mask":
-            mask = self.generator.union_mask(prediction, image.height, image.width).astype(np.uint8) * 255
-            output = np.repeat(mask[:, :, None], 3, axis=2)
-        else:
-            raise ValueError(f"Unsupported online SAM3 output kind: {self.output_kind}")
+    def __call__(self, image_np: np.ndarray, target_area: int) -> tuple[np.ndarray, dict]:
+        self._enqueue_latest(image_np, target_area)
+        with self._result_lock:
+            crop_np = None if self._latest_crop_np is None else self._latest_crop_np.copy()
+            timing = dict(self._latest_timing)
+        if crop_np is None:
+            crop_np = np.zeros_like(image_np, dtype=np.uint8)
+        return crop_np.astype(np.uint8), timing
 
-        timing = dict(prediction.timing_ms)
-        timing["num_masks"] = int(len(prediction.masks))
-        return output.astype(np.uint8), timing
+    def latest_debug_images(self) -> dict[str, np.ndarray]:
+        with self._result_lock:
+            images = {}
+            if self._latest_crop_np is not None:
+                images[DEFAULT_SEGMENTED_VIEW_KEY] = self._latest_crop_np.copy()
+            if self._latest_bbox_np is not None:
+                images[DEFAULT_TARGET_BBOX_VIEW_KEY] = self._latest_bbox_np.copy()
+            return images
+
+    def _enqueue_latest(self, image_np: np.ndarray, target_area: int) -> None:
+        job = (image_np.copy(), int(target_area), time.time())
+        try:
+            self._job_queue.put_nowait(job)
+        except queue.Full:
+            try:
+                self._job_queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self._job_queue.put_nowait(job)
+            except queue.Full:
+                pass
+
+    def _worker_loop(self) -> None:
+        while True:
+            image_np, target_area, queued_at = self._job_queue.get()
+            start = time.time()
+            try:
+                crop_np, bbox_np, timing = self._process(image_np, target_area)
+                timing["queued_ms"] = (start - queued_at) * 1000.0
+                timing["wall_ms"] = (time.time() - start) * 1000.0
+                with self._result_lock:
+                    self._latest_crop_np = crop_np
+                    self._latest_bbox_np = bbox_np
+                    self._latest_timing = timing
+            except Exception as exc:
+                with self._result_lock:
+                    self._latest_timing = {
+                        **self._latest_timing,
+                        "status": "error",
+                        "error": str(exc),
+                        "wall_ms": (time.time() - start) * 1000.0,
+                    }
+                print(f"[SAM3+Qwen3] Warning: failed to update target crop: {exc}")
+
+    def _process(self, image_np: np.ndarray, target_area: int) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+        if self.worker.poll() is not None:
+            raise RuntimeError(
+                f"SAM3+Qwen3 worker exited with code {self.worker.returncode}; "
+                f"see {self.worker_log_path}"
+            )
+        if self.worker.stdin is None or self.worker.stdout is None:
+            raise RuntimeError("SAM3+Qwen3 worker pipes are unavailable")
+
+        request = {
+            "image_b64": encode_image_b64(image_np),
+            "target_area": int(target_area),
+            "sam_prompt": self.prompt,
+            "sam_threshold": self.sam_threshold,
+            "sam_mask_threshold": self.sam_mask_threshold,
+            "min_box_height_ratio": self.min_box_height_ratio,
+            "min_box_area_ratio": self.min_box_area_ratio,
+            "nms_iou": self.nms_iou,
+            "merged_containment_threshold": self.merged_containment_threshold,
+            "merged_child_max_iou": self.merged_child_max_iou,
+            "size_dominance_ratio": self.size_dominance_ratio,
+            "crop_padding_ratio": self.crop_padding_ratio,
+            "crop_upscale": self.crop_upscale,
+            "qwen_max_new_tokens": self.qwen_max_new_tokens,
+        }
+        self.worker.stdin.write(json.dumps(request) + "\n")
+        self.worker.stdin.flush()
+        response_line = self.worker.stdout.readline()
+        if not response_line:
+            raise RuntimeError("SAM3+Qwen3 worker closed stdout")
+        response = json.loads(response_line)
+        if not response.get("ok", False):
+            raise RuntimeError(response.get("error", "SAM3+Qwen3 worker request failed"))
+
+        timing = response["timing"]
+        bbox_state = timing.get("bbox_state") or {}
+        set_bbox_state(
+            bbox_state.get("bbox_status", 0.0),
+            (
+                bbox_state.get("bbox_x1", 0.0),
+                bbox_state.get("bbox_y1", 0.0),
+                bbox_state.get("bbox_x2", 0.0),
+                bbox_state.get("bbox_y2", 0.0),
+            ),
+        )
+        timing["bbox_state"] = get_bbox_state()
+        crop_np = decode_image_b64(response["crop_b64"])
+        bbox_np = decode_image_b64(response["bbox_view_b64"])
+        return crop_np, bbox_np, timing
+
+
+def is_eligible_qwen_candidate(candidate: dict[str, Any]) -> bool:
+    reading = candidate["qwen"]
+    if reading["status"] != "readable":
+        return False
+    if candidate["area_label_count"] != 1:
+        return False
+    return (
+        reading["panel_count"] == 1
+        and reading["full_panel_visible"]
+        and reading["text_complete"]
+        and reading["arrow_visible"]
+        and reading["text_arrow_same_panel"]
+    )
+
+
+def select_target_candidate(
+    candidates: list[dict[str, Any]],
+    target_area: int,
+    size_dominance_ratio: float,
+) -> tuple[int | None, str | None, list[int]]:
+    matching_indices = [
+        index
+        for index, candidate in enumerate(candidates)
+        if candidate.get("eligible_for_matching", False)
+        and target_area in candidate.get("included_areas", [])
+    ]
+    if len(matching_indices) == 0:
+        return None, None, matching_indices
+    if len(matching_indices) == 1:
+        return matching_indices[0], "single_matching_candidate", matching_indices
+
+    ranked_by_size = sorted(
+        matching_indices,
+        key=lambda index: candidates[index]["mask_area_pixels"],
+        reverse=True,
+    )
+    largest_index, second_index = ranked_by_size[:2]
+    largest_area = candidates[largest_index]["mask_area_pixels"]
+    second_area = candidates[second_index]["mask_area_pixels"]
+    if largest_area / max(second_area, 1) >= size_dominance_ratio:
+        return largest_index, "largest_mask_area", matching_indices
+
+    minimum_tie_area = largest_area / size_dominance_ratio
+    tie_candidate_indices = [
+        index
+        for index in ranked_by_size
+        if candidates[index]["mask_area_pixels"] >= minimum_tie_area
+    ]
+    selected_index = max(
+        tie_candidate_indices,
+        key=lambda index: (
+            candidates[index]["sam_score"],
+            candidates[index]["mask_area_pixels"],
+            -index,
+        ),
+    )
+    return selected_index, "sam_score_size_tiebreak", matching_indices
+
+
+def draw_selected_bbox_view(
+    image: Image.Image,
+    candidates: list[dict[str, Any]],
+    selected_index: int | None,
+    target_area: int,
+) -> Image.Image:
+    canvas = image.copy().convert("RGB")
+    draw = ImageDraw.Draw(canvas)
+    font = ImageFont.load_default()
+    thin = max(2, image.width // 400)
+    thick = max(4, image.width // 250)
+    for index, candidate in enumerate(candidates):
+        box = tuple(round(v) for v in candidate["bbox_xyxy"])
+        color = "#00a7ff"
+        if index == selected_index:
+            color = "#ff3030"
+        elif candidate.get("eligible_for_matching", False):
+            color = "#7fd36b"
+        draw.rectangle(box, outline=color, width=thick if index == selected_index else thin)
+        reading = candidate.get("qwen", {})
+        label = f"#{index} {reading.get('sign_text') or '-'}"
+        draw.text(
+            (box[0] + 3, max(0, box[1] - 16)),
+            label,
+            fill="white",
+            font=font,
+            stroke_width=2,
+            stroke_fill="#000000",
+        )
+    header = f"target AREA_{target_area}"
+    if selected_index is not None:
+        selected = candidates[selected_index]
+        reading = selected["qwen"]
+        header += f" | selected #{selected_index}: {reading['sign_text']} / {reading['arrow_direction']}"
+    else:
+        header += " | no target marker"
+    draw.rectangle((0, 0, image.width, 24), fill="#000000")
+    draw.text((8, 6), header, fill="#ffffff", font=font)
+    return canvas
+
+
+def pad_to_aspect_ratio(image: Image.Image, target_size: tuple[int, int]) -> Image.Image:
+    target_width, target_height = target_size
+    target_aspect = target_width / target_height
+    crop_aspect = image.width / image.height
+    if abs(crop_aspect - target_aspect) < 1e-6:
+        return image
+
+    if crop_aspect > target_aspect:
+        padded_width = image.width
+        padded_height = round(image.width / target_aspect)
+    else:
+        padded_height = image.height
+        padded_width = round(image.height * target_aspect)
+
+    canvas = Image.new("RGB", (padded_width, padded_height), color=(0, 0, 0))
+    offset = ((padded_width - image.width) // 2, (padded_height - image.height) // 2)
+    canvas.paste(image, offset)
+    return canvas
+
+
+def set_bbox_state(status: float, xyxy: tuple[float, float, float, float]) -> None:
+    x1, y1, x2, y2 = xyxy
+    with _bbox_lock:
+        _bbox_state.update(
+            {
+                "bbox_status": float(status),
+                "bbox_x1": float(x1),
+                "bbox_y1": float(y1),
+                "bbox_x2": float(x2),
+                "bbox_y2": float(y2),
+            }
+        )
+
+
+def get_bbox_state() -> dict[str, float]:
+    with _bbox_lock:
+        return dict(_bbox_state)
+
+
+def largest_box(boxes: list[tuple[int, int, int, int]]) -> tuple[int, int, int, int] | None:
+    if not boxes:
+        return None
+    return max(boxes, key=lambda box: max(0, box[2] - box[0]) * max(0, box[3] - box[1]))
+
+
+def clamp_pixel_box(
+    box: tuple[int, int, int, int],
+    width: int,
+    height: int,
+) -> tuple[int, int, int, int]:
+    x1, y1, x2, y2 = box
+    x1 = max(0, min(width - 1, int(x1)))
+    y1 = max(0, min(height - 1, int(y1)))
+    x2 = max(x1 + 1, min(width, int(x2)))
+    y2 = max(y1 + 1, min(height, int(y2)))
+    return x1, y1, x2, y2
 
 
 def get_policy_video_keys(policy) -> list[str]:
@@ -723,6 +955,10 @@ def build_observation(frame_buffers, speed: float, language: str, video_keys: li
         "video": video,
         "state": {
             "speed": np.array([[[float(speed)]]], dtype=np.float32),
+            **{
+                key: np.array([[[value]]], dtype=np.float32)
+                for key, value in get_bbox_state().items()
+            },
         },
         "language": {
             "annotation.human.action.task_description": [[language]],
@@ -787,6 +1023,7 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
             if not images_b64:
                 raise KeyError("image")
             images_np = decode_images_b64(images_b64)
+            prompt_state = get_prompt_state()
             sam3_timing = None
             if segmenter is not None:
                 ego_image = images_np.get("ego_view")
@@ -795,10 +1032,12 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 if ego_image is None:
                     raise ValueError("SAM3 segmentation requested but no ego RGB image is available")
                 segment_t = time.time()
-                segmented_np, sam3_timing = segmenter(ego_image)
-                sam3_timing["wall_ms"] = (time.time() - segment_t) * 1000.0
+                segmented_np, sam3_timing = segmenter(ego_image, prompt_state["target_area"])
+                sam3_timing["lookup_ms"] = (time.time() - segment_t) * 1000.0
                 images_np[segmented_view_key] = segmented_np
                 images_b64[segmented_view_key] = encode_image_b64(segmented_np)
+                for view_key, debug_image_np in segmenter.latest_debug_images().items():
+                    images_b64[view_key] = encode_image_b64(debug_image_np)
             update_frame_buffers(frame_buffers, images_np, video_keys, video_horizon)
 
             episode_id = req.get("episode_id")
@@ -810,7 +1049,6 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 update_frame_buffers(frame_buffers, images_np, video_keys, video_horizon)
                 print(f"[GR00T] new episode_id={active_episode_id}; policy reset")
 
-            prompt_state = get_prompt_state()
             if prompt_state["revision"] != active_prompt_revision:
                 active_prompt_revision = prompt_state["revision"]
                 policy.reset()
@@ -935,8 +1173,27 @@ def main():
     )
     parser.add_argument("--segmented-view-key", default=DEFAULT_SEGMENTED_VIEW_KEY)
     parser.add_argument("--sam3-generator-path", default=str(DEFAULT_SIGN_SEG_GENERATOR))
+    parser.add_argument("--sam3-qwen3-module-path", default=str(DEFAULT_SAM3_QWEN3_MODULE))
+    parser.add_argument("--sam3-qwen3-worker-path", default=str(DEFAULT_SAM3_QWEN3_WORKER))
+    parser.add_argument("--sam3-qwen3-worker-python", default=str(DEFAULT_SAM3_QWEN3_PYTHON))
+    parser.add_argument("--sam3-model-id", default="facebook/sam3")
+    parser.add_argument("--qwen-model-id", default="Qwen/Qwen3-VL-4B-Instruct")
+    parser.add_argument("--sam3-threshold", type=float, default=0.35)
+    parser.add_argument("--sam3-mask-threshold", type=float, default=0.5)
+    parser.add_argument("--sam3-nms-iou", type=float, default=0.75)
+    parser.add_argument("--sam3-merged-containment-threshold", type=float, default=0.90)
+    parser.add_argument("--sam3-merged-child-max-iou", type=float, default=0.30)
+    parser.add_argument("--target-size-dominance-ratio", type=float, default=1.25)
+    parser.add_argument("--qwen-crop-padding-ratio", type=float, default=0.04)
+    parser.add_argument("--qwen-crop-upscale", type=float, default=3.0)
+    parser.add_argument("--qwen-max-new-tokens", type=int, default=128)
+    parser.add_argument("--qwen-max-pixels", type=int, default=1024 * 28 * 28)
+    parser.add_argument("--sam3-qwen3-dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto")
     parser.add_argument("--sam3-device", default=None)
-    parser.add_argument("--sam3-prompt", default="rectangular directional sign panel")
+    parser.add_argument(
+        "--sam3-prompt",
+        default="one individual rectangular sign panel containing one Area label and its own arrow",
+    )
     parser.add_argument("--sam3-confidence", type=float, default=0.8)
     parser.add_argument("--sam3-min-mask-area", type=int, default=20)
     parser.add_argument("--sam3-checkpoint-path", default=None)
@@ -979,22 +1236,26 @@ def main():
     segmenter = None
     if args.enable_sam3_segmentation:
         segmenter = Sam3SegmentedViewGenerator(
-            generator_path=args.sam3_generator_path,
+            pipeline_module_path=args.sam3_qwen3_module_path,
+            worker_path=args.sam3_qwen3_worker_path,
+            worker_python=args.sam3_qwen3_worker_python,
             device=args.sam3_device or args.device,
             prompt=args.sam3_prompt,
-            confidence=args.sam3_confidence,
-            min_mask_area=args.sam3_min_mask_area,
-            checkpoint_path=args.sam3_checkpoint_path,
-            bpe_path=args.sam3_bpe_path,
-            output_kind=args.sam3_output_kind,
-            merge_gap_ratio=args.sam3_merge_gap_ratio,
-            merge_gap_pixels=args.sam3_merge_gap_pixels,
-            bbox_padding_ratio=args.sam3_bbox_padding_ratio,
-            bbox_padding_pixels=args.sam3_bbox_padding_pixels,
-            bbox_line_thickness=args.sam3_bbox_line_thickness,
             min_box_area_ratio=args.sam3_min_box_area_ratio,
-            min_box_width_ratio=args.sam3_min_box_width_ratio,
             min_box_height_ratio=args.sam3_min_box_height_ratio,
+            sam_model_id=args.sam3_model_id,
+            qwen_model_id=args.qwen_model_id,
+            sam_threshold=args.sam3_threshold,
+            sam_mask_threshold=args.sam3_mask_threshold,
+            nms_iou=args.sam3_nms_iou,
+            merged_containment_threshold=args.sam3_merged_containment_threshold,
+            merged_child_max_iou=args.sam3_merged_child_max_iou,
+            size_dominance_ratio=args.target_size_dominance_ratio,
+            crop_padding_ratio=args.qwen_crop_padding_ratio,
+            crop_upscale=args.qwen_crop_upscale,
+            qwen_max_new_tokens=args.qwen_max_new_tokens,
+            qwen_max_pixels=args.qwen_max_pixels,
+            dtype=args.sam3_qwen3_dtype,
         )
         if args.segmented_view_key in video_keys:
             print(f"[SAM3] {args.segmented_view_key!r} is in model video_keys; it will be used.")

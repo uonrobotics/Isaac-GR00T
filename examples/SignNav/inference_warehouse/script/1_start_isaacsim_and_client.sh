@@ -9,7 +9,7 @@ ENV_USD_PATH="${ENV_USD_PATH:-/nas/sujinkim/data/SignNav/_assets/warehouse/Indus
 SPAWN_X="${SPAWN_X:-21.0}"
 SPAWN_Y="${SPAWN_Y:-31.0}"
 SPAWN_Z="${SPAWN_Z:-0.0}"
-SPAWN_YAW="${SPAWN_YAW:--90.0}"
+SPAWN_YAW="${SPAWN_YAW:--1.5}"
 CAMERA_PRESET="${CAMERA_PRESET:-gemini_336l}"
 IMAGE_FORMAT="${IMAGE_FORMAT:-jpeg}"
 JPEG_QUALITY="${JPEG_QUALITY:-85}"
@@ -48,7 +48,7 @@ if [[ -n "$ISAACSIM_EXTRA_ARGS" ]]; then
 fi
 
 PYTHONUNBUFFERED=1 /home/sujin/isaac-sim/python.sh \
-    "${REPO_ROOT}/examples/SignNav/inference_warehouse/isaacsim_min_server.py" \
+    "${REPO_ROOT}/examples/SignNav/inference_warehouse/isaacsim_server.py" \
     --env-usd-path "$ENV_USD_PATH" \
     --spawn-x "$SPAWN_X" \
     --spawn-y "$SPAWN_Y" \
