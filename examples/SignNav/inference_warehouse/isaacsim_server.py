@@ -88,7 +88,7 @@ def set_realtime_renderer() -> None:
         if viewport is not None:
             viewport.set_hd_engine("rtx", "RaytracedLighting")
     except Exception as exc:
-        print(f"[MIN SIM] viewport renderer setup skipped: {exc}")
+        print(f"[ISAACSIM] viewport renderer setup skipped: {exc}")
 
 
 def add_physics_scene(stage):
@@ -117,7 +117,7 @@ def add_collision_to_prim(stage, prim_path: str, approximation: str = "none") ->
         return 0
     root = stage.GetPrimAtPath(prim_path)
     if not root.IsValid():
-        print(f"[MIN SIM] collision prim not found: {prim_path}")
+        print(f"[ISAACSIM] collision prim not found: {prim_path}")
         return 0
     count = 0
     for prim in Usd.PrimRange(root):
@@ -129,8 +129,8 @@ def add_collision_to_prim(stage, prim_path: str, approximation: str = "none") ->
             mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
             mesh_collision.CreateApproximationAttr().Set(approximation)
         count += 1
-        print(f"[MIN SIM] collision mesh: {prim.GetPath()}")
-    print(f"[MIN SIM] collision applied: root={prim_path} meshes={count}")
+        print(f"[ISAACSIM] collision mesh: {prim.GetPath()}")
+    print(f"[ISAACSIM] collision applied: root={prim_path} meshes={count}")
     return count
 
 
@@ -256,7 +256,7 @@ class JsonSocketServer:
             self.client = None
             self.buffer = b""
             if reason:
-                print(f"[MIN SIM IPC] client dropped: {reason}")
+                print(f"[ISAACSIM IPC] client dropped: {reason}")
 
     def accept_if_needed(self):
         if self.client is not None:
@@ -269,7 +269,7 @@ class JsonSocketServer:
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.client = conn
         self.buffer = b""
-        print(f"[MIN SIM IPC] client connected from {addr}")
+        print(f"[ISAACSIM IPC] client connected from {addr}")
 
     def recv_message(self):
         self.accept_if_needed()
@@ -319,7 +319,7 @@ class JsonSocketServer:
         self.server.close()
 
 
-class MinimalIsaacSimServer:
+class IsaacSimServer:
     def __init__(self, args):
         self.args = args
         self.stage = None
@@ -361,7 +361,7 @@ class MinimalIsaacSimServer:
             self.args.floor_collision_approximation,
         )
         print(
-            f"[MIN SIM] referenced USD: {self.args.env_usd_path} "
+            f"[ISAACSIM] referenced USD: {self.args.env_usd_path} "
             f"under {ENV_ROOT_PRIM_PATH} scale_parent={ENV_SCALE_PRIM_PATH} "
             f"scale={env_meters_per_unit}"
         )
@@ -383,7 +383,7 @@ class MinimalIsaacSimServer:
         self.reset_robot_pose(self.args.spawn_x, self.args.spawn_y, self.args.spawn_yaw, self.args.spawn_z)
         self._setup_camera()
         set_realtime_renderer()
-        print("[MIN SIM] ready")
+        print("[ISAACSIM] ready")
 
     def _deactivate_robot_camera_ros_graphs(self):
         if not self.args.enable_ros2_bridge:
@@ -395,7 +395,7 @@ class MinimalIsaacSimServer:
                 prim.SetActive(False)
                 disabled.append(prim_path)
         if disabled:
-            print(f"[MIN SIM] deactivated built-in robot camera ROS graphs: {len(disabled)}")
+            print(f"[ISAACSIM] deactivated built-in robot camera ROS graphs: {len(disabled)}")
 
     def _set_robot_xform_pose(self, x: float, y: float, z: float, yaw: float):
         robot_prim = self.stage.GetPrimAtPath(ROBOT_ROOT_PRIM_PATH)
@@ -445,7 +445,7 @@ class MinimalIsaacSimServer:
             simulation_app.update()
         pose = self.get_pose()
         print(
-            f"[MIN SIM] reset pose requested=({x:.3f},{y:.3f},{z:.3f},{yaw:.3f}) "
+            f"[ISAACSIM] reset pose requested=({x:.3f},{y:.3f},{z:.3f},{yaw:.3f}) "
             f"actual=({pose['x']:.3f},{pose['y']:.3f},{pose['yaw']:.3f})"
         )
         return pose
@@ -525,10 +525,10 @@ def parse_args():
 
 def main():
     args = parse_args()
-    sim = MinimalIsaacSimServer(args)
+    sim = IsaacSimServer(args)
     server = JsonSocketServer("0.0.0.0", args.sim_port)
     sim.setup()
-    print(f"[MIN SIM OBS SERVER] listening on 0.0.0.0:{args.sim_port}")
+    print(f"[ISAACSIM OBS SERVER] listening on 0.0.0.0:{args.sim_port}")
 
     try:
         while simulation_app.is_running():
@@ -556,10 +556,10 @@ def main():
                 else:
                     server.send_message({"ok": False, "error": f"unknown cmd: {cmd}"})
             except Exception as exc:
-                print(f"[MIN SIM] command failed: {exc}")
+                print(f"[ISAACSIM] command failed: {exc}")
                 server.send_message({"ok": False, "error": str(exc)})
     except KeyboardInterrupt:
-        print("\n[MIN SIM] interrupted")
+        print("\n[ISAACSIM] interrupted")
     finally:
         server.close()
         simulation_app.close()

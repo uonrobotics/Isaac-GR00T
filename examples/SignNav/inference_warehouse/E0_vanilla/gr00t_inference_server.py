@@ -52,52 +52,49 @@ LISTEN_PORT = 5000
 WEB_PORT = 9090
 WARMUP_STEPS = 4
 ACTION_STEP_IDX = 1
-DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[1] / "modality_config_signnav.py"
+DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[2] / "modality_config_signnav.py"
 DEFAULT_TARGET_AREA = 1
 DEFAULT_SIGN_SEG_GENERATOR = Path(
     "/home/sujin/workspace/physical-ai/sign_seg_test/jobs/segmented_rgb_generator.py"
 )
 DEFAULT_SEGMENTED_VIEW_KEY = "segmented_ego_view"
-DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parent / "script" / "third_party" / "sam3"
+DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parents[1] / "script" / "third_party" / "sam3"
 
 PROMPT_VERSION = 1 
 PROMPT_TEMPLATES = {
     1: (
-        "Find the sign panel containing Area {area} and use it to choose the navigation action. "
-    )
-    # 1: (
-    #     "Your goal is to navigate safely to Area {area} using directional signs. "
-    #     "Read the visible sign panels and select the panel whose label includes Area {area}. "
-    #     "Area ranges include all areas within the range, and comma-separated labels include all listed areas. "
-    #     "Use only the arrow attached to the selected panel. "
-    #     "Treat the selected arrow as the route to follow at the next relevant junction, not necessarily as an immediate turn. "
-    #     "Use the current scene geometry to approach and enter the indicated corridor. "
-    #     "If the sign is no longer visible, remember its direction until that route choice has been completed. "
-    #     "Avoid collisions and stop only after reaching Area {area}."
-    # ),
-    # 2: (
-    #     "Navigate safely to Area {area} using visible directional signs. "
-    #     "Rule 1: IF signs are visible, select the panel whose label includes Area {area}, including ranges and comma-separated lists. "
-    #     "Rule 2: Follow only the arrow attached to the matching panel. "
-    #     "Rule 3: IF the sign leaves view, remember its direction until the related junction is crossed. "
-    #     "Rule 4: Approach the junction and turn only when the indicated corridor becomes reachable. "
-    #     "Rule 5: After crossing the junction, search for the next relevant sign. "
-    #     "Rule 6: Avoid obstacles and stop only after reaching Area {area}."
-    # ),
-    # 3: (
-    #     "TASK_TYPE: Sign guided navigation "
-    #     "TARGET_AREA: Area {area} "
-    #     "GOAL: Reach the target safely "
-    #     "SIGN_SELECTION: Select the panel whose label includes the target area "
-    #     "AREA_MATCHING: Ranges include all intermediate areas and lists include all listed areas "
-    #     "ARROW_BINDING: Follow only the arrow attached to the matched panel "
-    #     "MEMORY_WRITE: Store the matched arrow direction as the active route "
-    #     "MEMORY_RETAIN: Keep the active route even after the sign leaves view "
-    #     "MEMORY_USE: Apply the active route at the next relevant junction "
-    #     "TURN_TIMING: Turn only when the indicated corridor is reachable "
-    #     "STATIC_CONTROL: Avoid walls and static obstacles "
-    #     "STOP_CONDITION: Stop only after reaching the target area"
-    # ),
+        "Your goal is to navigate safely to Area {area} using directional signs. "
+        "Read the visible sign panels and select the panel whose label includes Area {area}. "
+        "Area ranges include all areas within the range, and comma-separated labels include all listed areas. "
+        "Use only the arrow attached to the selected panel. "
+        "Treat the selected arrow as the route to follow at the next relevant junction, not necessarily as an immediate turn. "
+        "Use the current scene geometry to approach and enter the indicated corridor. "
+        "If the sign is no longer visible, remember its direction until that route choice has been completed. "
+        "Avoid collisions and stop only after reaching Area {area}."
+    ),
+    2: (
+        "Navigate safely to Area {area} using visible directional signs. "
+        "Rule 1: IF signs are visible, select the panel whose label includes Area {area}, including ranges and comma-separated lists. "
+        "Rule 2: Follow only the arrow attached to the matching panel. "
+        "Rule 3: IF the sign leaves view, remember its direction until the related junction is crossed. "
+        "Rule 4: Approach the junction and turn only when the indicated corridor becomes reachable. "
+        "Rule 5: After crossing the junction, search for the next relevant sign. "
+        "Rule 6: Avoid obstacles and stop only after reaching Area {area}."
+    ),
+    3: (
+        "TASK_TYPE: Sign guided navigation "
+        "TARGET_AREA: Area {area} "
+        "GOAL: Reach the target safely "
+        "SIGN_SELECTION: Select the panel whose label includes the target area "
+        "AREA_MATCHING: Ranges include all intermediate areas and lists include all listed areas "
+        "ARROW_BINDING: Follow only the arrow attached to the matched panel "
+        "MEMORY_WRITE: Store the matched arrow direction as the active route "
+        "MEMORY_RETAIN: Keep the active route even after the sign leaves view "
+        "MEMORY_USE: Apply the active route at the next relevant junction "
+        "TURN_TIMING: Turn only when the indicated corridor is reachable "
+        "STATIC_CONTROL: Avoid walls and static obstacles "
+        "STOP_CONDITION: Stop only after reaching the target area"
+    ),
 }
 
 _prompt_lock = threading.Lock()
