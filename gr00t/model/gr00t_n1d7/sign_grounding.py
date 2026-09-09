@@ -9,19 +9,23 @@ import torch.nn.functional as F
 def box_cxcywh_to_xyxy(boxes: torch.Tensor) -> torch.Tensor:
     # The head predicts cx/cy/w/h because this avoids invalid x1>x2 boxes during
     # early training. Losses and visual metrics often expect xyxy, so keep the
-    # conversion local and clamp to normalized image coordinates.
+    # conversion in FP32 without clipping: out-of-frame edges need gradients.
+    # Clamp only in visualization code.
+    boxes = boxes.float()
     cx, cy, w, h = boxes.unbind(dim=-1)
     x1 = cx - 0.5 * w
     y1 = cy - 0.5 * h
     x2 = cx + 0.5 * w
     y2 = cy + 0.5 * h
-    return torch.stack([x1, y1, x2, y2], dim=-1).clamp(0.0, 1.0)
+    return torch.stack([x1, y1, x2, y2], dim=-1)
 
 
 def generalized_box_iou_loss(pred_xyxy: torch.Tensor, target_xyxy: torch.Tensor) -> torch.Tensor:
     # Small, dependency-free GIoU implementation for normalized boxes. This keeps
     # the grounding branch self-contained and avoids pulling torchvision ops into
     # model forward paths that may later be exported or run on deployment targets.
+    pred_xyxy = pred_xyxy.float()
+    target_xyxy = target_xyxy.float()
     pred_x1, pred_y1, pred_x2, pred_y2 = pred_xyxy.unbind(dim=-1)
     tgt_x1, tgt_y1, tgt_x2, tgt_y2 = target_xyxy.unbind(dim=-1)
 
@@ -100,7 +104,7 @@ class SignGroundingHead(nn.Module):
             output_layer.bias[2:].fill_(size_logit)
 
     def forward(self, sign_hidden: torch.Tensor) -> dict[str, torch.Tensor]:
-        raw_bbox = self.bbox_head(sign_hidden)
+        raw_bbox = self.bbox_head(sign_hidden).float()
         center = torch.sigmoid(raw_bbox[..., :2])
         size = self.min_bbox_size + (self.max_bbox_size - self.min_bbox_size) * torch.sigmoid(
             raw_bbox[..., 2:]
@@ -154,7 +158,7 @@ class GroundedTokenFusion(nn.Module):
         use_gt_status_gate: bool = True,
     ) -> torch.Tensor:
         sign_feature = self.sign_projector(sign_hidden)
-        bbox_feature = self.bbox_projector(bbox_cxcywh)
+        bbox_feature = self.bbox_projector(bbox_cxcywh.to(dtype=self.bbox_projector.weight.dtype))
         grounded_feature = self.fusion(torch.cat([sign_feature, bbox_feature], dim=-1))
 
         if use_status_gate:
@@ -184,6 +188,7 @@ def compute_sign_grounding_losses(
 ) -> dict[str, torch.Tensor]:
     # Keep zero losses connected to the graph, so batches without found signs or
     # batches used before labels are wired in can still backpropagate cleanly.
+    pred_bbox_cxcywh = pred_bbox_cxcywh.float()
     zero = pred_bbox_cxcywh.sum() * 0.0
     losses = {
         "sign_bbox_l1_loss": zero,
@@ -203,7 +208,7 @@ def compute_sign_grounding_losses(
         found = gt_status == found_status_id
         if found.any():
             pred_found = pred_bbox_cxcywh[found]
-            gt_found = gt_bbox_cxcywh[found].to(dtype=pred_bbox_cxcywh.dtype)
+            gt_found = gt_bbox_cxcywh[found].float()
             losses["sign_bbox_l1_loss"] = F.l1_loss(pred_found, gt_found)
             losses["sign_bbox_giou_loss"] = generalized_box_iou_loss(
                 box_cxcywh_to_xyxy(pred_found),
@@ -211,8 +216,6 @@ def compute_sign_grounding_losses(
             )
 
     losses["sign_grounding_loss"] = (
-        losses["sign_status_loss"]
-        + losses["sign_bbox_l1_loss"]
-        + losses["sign_bbox_giou_loss"]
+        losses["sign_status_loss"] + losses["sign_bbox_l1_loss"] + losses["sign_bbox_giou_loss"]
     )
     return losses

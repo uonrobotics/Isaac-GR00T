@@ -25,15 +25,15 @@ from transformers.feature_extraction_utils import BatchFeature
 import tree
 
 from gr00t.configs.model.gr00t_n1d7 import Gr00tN1d7Config
-from gr00t.model.modules.dit import AlternateVLDiT, DiT, SelfAttentionTransformer
-from gr00t.model.modules.embodiment_conditioned_mlp import (
-    CategorySpecificMLP,
-    MultiEmbodimentActionEncoder,
-)
 from gr00t.model.gr00t_n1d7.sign_grounding import (
     GroundedTokenFusion,
     SignGroundingHead,
     compute_sign_grounding_losses,
+)
+from gr00t.model.modules.dit import AlternateVLDiT, DiT, SelfAttentionTransformer
+from gr00t.model.modules.embodiment_conditioned_mlp import (
+    CategorySpecificMLP,
+    MultiEmbodimentActionEncoder,
 )
 
 
@@ -596,8 +596,20 @@ class Gr00tN1d7(PreTrainedModel):
             else:
                 return x.to(self.device)
 
-        backbone_inputs = tree.map_structure(to_device_with_dtype, backbone_inputs)
-        action_inputs = tree.map_structure(to_device_with_dtype, action_inputs)
+        def prepare_tensors(batch):
+            # Keep bbox targets out of the general reduced-precision cast.
+            bbox_keys = ("gt_sign_bbox_cxcywh", "sign_bbox_cxcywh")
+            return BatchFeature(
+                data={
+                    key: value.to(device=self.device, dtype=torch.float32)
+                    if key in bbox_keys
+                    else tree.map_structure(to_device_with_dtype, value)
+                    for key, value in batch.items()
+                }
+            )
+
+        backbone_inputs = prepare_tensors(backbone_inputs)
+        action_inputs = prepare_tensors(action_inputs)
 
         return backbone_inputs, action_inputs
 
@@ -642,7 +654,7 @@ class Gr00tN1d7(PreTrainedModel):
             "sign_status",
         )
         if gt_bbox is not None:
-            gt_bbox = gt_bbox.to(device=vl_tokens.device, dtype=vl_tokens.dtype)
+            gt_bbox = gt_bbox.to(device=vl_tokens.device, dtype=torch.float32)
         if gt_status is not None:
             gt_status = gt_status.to(device=vl_tokens.device).long()
 
