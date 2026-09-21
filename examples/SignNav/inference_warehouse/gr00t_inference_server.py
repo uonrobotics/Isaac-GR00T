@@ -41,11 +41,16 @@ import threading
 import time
 from urllib.parse import urlparse
 
+from dashboard_video_recorder import (
+    capture_dashboard_video,
+    cleanup_dashboard_video_recorder,
+    configure_dashboard_video_recorder,
+    resolve_dashboard_video,
+)
+from gr00t.data.embodiment_tags import EmbodimentTag
+from gr00t.policy.gr00t_policy import Gr00tPolicy
 import numpy as np
 from PIL import Image
-
-from gr00t.policy.gr00t_policy import Gr00tPolicy
-from gr00t.data.embodiment_tags import EmbodimentTag
 
 
 LISTEN_PORT = 5000
@@ -165,7 +170,10 @@ def print_prompt_state(prefix: str = "[PROMPT]"):
 
 
 def _keyboard_listener():
-    print("[PROMPT] Keyboard: enter 1..12 or a1..a12 to switch target area; s/show to print current prompt")
+    print(
+        "[PROMPT] This terminal: 1..12 changes target; s/show only prints the prompt. "
+        "Use s in the CLIENT terminal to save/discard and reset."
+    )
     while True:
         try:
             key = input().strip().lower()
@@ -206,6 +214,8 @@ def load_modality_config(path: str | Path):
 
 
 def _push_dashboard(images_b64, telemetry: dict):
+    telemetry = dict(telemetry)
+    telemetry["dashboard_recording"] = capture_dashboard_video(images_b64, telemetry)
     if isinstance(images_b64, dict):
         images = dict(images_b64)
         image_b64 = images.get("ego_view") or next(iter(images.values()), None)
@@ -278,6 +288,8 @@ _DASHBOARD_HTML = """\
     <div class="row"><span class="label">Target Area</span><span class="value" id="target_area">-</span></div>
     <div class="row"><span class="label">Prompt</span><span class="value" id="prompt_version">-</span></div>
     <div class="row"><span class="label">Speed</span><span class="value" id="speed">-</span></div>
+    <div class="row"><span class="label">Robot v / w</span><span class="value" id="robot_speed">-</span></div>
+    <div class="row"><span class="label">Video</span><span class="value" id="video_state">-</span></div>
     <div class="row"><span class="label">Action Step</span><span class="value" id="action_step">-</span></div>
     <div class="row"><span class="label">Cam to Input</span><span class="value" id="latency">-</span></div>
     <div class="row"><span class="label">SAM3</span><span class="value" id="sam3">-</span></div>
@@ -310,6 +322,14 @@ es.onmessage = e => {
   document.getElementById("target_area").textContent = d.target_area !== undefined ? "AREA_" + d.target_area : "-";
   document.getElementById("prompt_version").textContent = d.prompt_version !== undefined ? "v" + d.prompt_version : "-";
   document.getElementById("speed").textContent = d.speed !== undefined ? d.speed.toFixed(3) : "-";
+  document.getElementById("robot_speed").textContent =
+    Number.isFinite(d.robot_linear_speed) && Number.isFinite(d.robot_angular_speed)
+      ? d.robot_linear_speed.toFixed(3) + " / " + d.robot_angular_speed.toFixed(3)
+      : "cmd fallback";
+  const video = d.dashboard_recording;
+  document.getElementById("video_state").textContent = video
+    ? video.state.toUpperCase() + (video.pending_count ? " (" + video.pending_count + ")" : "")
+    : "-";
   document.getElementById("action_step").textContent =
     d.action_step !== undefined && d.action_horizon !== undefined
       ? d.action_step + " / " + (d.action_horizon - 1)
@@ -783,6 +803,18 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 print(f"[GR00T] JSON decode error: {e}")
                 continue
 
+            if req.get("control") == "dashboard_recording":
+                if req.get("action") != "resolve":
+                    control_resp = {"ok": False, "error": "unsupported recording action"}
+                else:
+                    control_resp = resolve_dashboard_video(
+                        save=bool(req.get("save", False)),
+                        episode_id=req.get("episode_id"),
+                        session_id=req.get("session_id"),
+                    )
+                conn.sendall((json.dumps(control_resp) + "\n").encode())
+                continue
+
             images_b64 = normalize_images_b64(req)
             if not images_b64:
                 raise KeyError("image")
@@ -834,11 +866,14 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                     images_b64,
                     {
                         "episode_id": active_episode_id,
+                        "session_id": req.get("session_id"),
                         "prompt_version": prompt_state["prompt_version"],
                         "target_area": prompt_state["target_area"],
                         "vx": 0.0,
                         "wz": 0.0,
                         "speed": speed,
+                        "robot_linear_speed": req.get("robot_linear_speed"),
+                        "robot_angular_speed": req.get("robot_angular_speed"),
                         "step": step,
                         "action_step": action_step,
                         "action_horizon": 16,
@@ -872,11 +907,14 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 images_b64,
                 {
                     "episode_id": active_episode_id,
+                    "session_id": req.get("session_id"),
                     "prompt_version": prompt_state["prompt_version"],
                     "target_area": prompt_state["target_area"],
                     "vx": vx,
                     "wz": wz,
                     "speed": speed,
+                    "robot_linear_speed": req.get("robot_linear_speed"),
+                    "robot_angular_speed": req.get("robot_angular_speed"),
                     "step": step,
                     "action_step": selected_step,
                     "action_horizon": action_horizon,
@@ -916,6 +954,21 @@ def main():
     parser.add_argument("--port", type=int, default=LISTEN_PORT)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--web-port", type=int, default=WEB_PORT)
+    parser.add_argument(
+        "--dashboard-video",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Stage one dashboard MP4 per episode until the client saves or discards it.",
+    )
+    parser.add_argument(
+        "--dashboard-record-dir",
+        type=Path,
+        default=Path(__file__).resolve().parent / "recordings",
+    )
+    parser.add_argument("--dashboard-record-fps", type=float, default=5.0)
+    parser.add_argument("--dashboard-stop-linear", type=float, default=0.03)
+    parser.add_argument("--dashboard-stop-angular", type=float, default=0.03)
+    parser.add_argument("--dashboard-stop-hold-sec", type=float, default=1.5)
     parser.add_argument("--prompt-version", type=int, choices=sorted(PROMPT_TEMPLATES), default=PROMPT_VERSION)
     parser.add_argument("--target-area", type=int, choices=range(1, 13), default=DEFAULT_TARGET_AREA)
     parser.add_argument("--action-step", type=int, default=ACTION_STEP_IDX,
@@ -956,6 +1009,23 @@ def main():
     parser.add_argument("--sam3-min-box-width-ratio", type=float, default=0.03)
     parser.add_argument("--sam3-min-box-height-ratio", type=float, default=0.03)
     args = parser.parse_args()
+
+    dashboard_recorder = configure_dashboard_video_recorder(
+        Path(__file__).resolve().parent.name,
+        recordings_dir=args.dashboard_record_dir,
+        fps=args.dashboard_record_fps,
+        stop_linear_threshold=args.dashboard_stop_linear,
+        stop_angular_threshold=args.dashboard_stop_angular,
+        stop_hold_seconds=args.dashboard_stop_hold_sec,
+        enabled=args.dashboard_video,
+    )
+    print(
+        f"[DASHBOARD VIDEO] {'enabled' if args.dashboard_video else 'disabled'}; "
+        f"save_dir={dashboard_recorder.recordings_dir} fps={dashboard_recorder.fps:g} "
+        f"stop=(|v|<{dashboard_recorder.stop_linear_threshold:g}, "
+        f"|w|<{dashboard_recorder.stop_angular_threshold:g}) for "
+        f"{dashboard_recorder.stop_hold_seconds:g}s"
+    )
 
     with _prompt_lock:
         _prompt_state["prompt_version"] = normalize_prompt_version(args.prompt_version)
@@ -1036,6 +1106,7 @@ def main():
     except KeyboardInterrupt:
         print("\n[GR00T] Shutting down.")
     finally:
+        cleanup_dashboard_video_recorder()
         server.close()
 
 

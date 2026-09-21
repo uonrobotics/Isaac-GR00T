@@ -13,6 +13,7 @@ SPAWN_YAW="${SPAWN_YAW:--1.5}"
 CAMERA_PRESET="${CAMERA_PRESET:-gemini_336l}"
 IMAGE_FORMAT="${IMAGE_FORMAT:-jpeg}"
 JPEG_QUALITY="${JPEG_QUALITY:-85}"
+ENV_COLLISION_PRIM_PATH="${ENV_COLLISION_PRIM_PATH-/World}"
 FLOOR_COLLISION_PRIM_PATH="${FLOOR_COLLISION_PRIM_PATH:-/World/Warehouse01/SM_Floor_A1}"
 FLOOR_COLLISION_APPROXIMATION="${FLOOR_COLLISION_APPROXIMATION:-none}"
 SIM_PORT="${SIM_PORT:-8765}"
@@ -32,6 +33,7 @@ echo "[MIN RUN] spawn=(${SPAWN_X}, ${SPAWN_Y}, ${SPAWN_Z}, yaw=${SPAWN_YAW})"
 echo "[MIN RUN] camera=${CAMERA_PRESET}"
 echo "[MIN RUN] camera_resolution=original image_format=${IMAGE_FORMAT} jpeg_quality=${JPEG_QUALITY}"
 echo "[MIN RUN] floor_collision=${FLOOR_COLLISION_PRIM_PATH} approx=${FLOOR_COLLISION_APPROXIMATION}"
+echo "[MIN RUN] env_collision=${ENV_COLLISION_PRIM_PATH} approx=none"
 echo "[MIN RUN] isaacsim_log=${ISAACSIM_LOG}"
 
 cleanup() {
@@ -59,6 +61,7 @@ PYTHONUNBUFFERED=1 /home/sujin/isaac-sim/python.sh \
     --jpeg-quality "$JPEG_QUALITY" \
     --sim-port "$SIM_PORT" \
     --enable-ros2-bridge \
+    --env-collision-prim-path "$ENV_COLLISION_PRIM_PATH" \
     --floor-collision-prim-path "$FLOOR_COLLISION_PRIM_PATH" \
     --floor-collision-approximation "$FLOOR_COLLISION_APPROXIMATION" \
     "${ISAACSIM_EXTRA_ARGS_ARRAY[@]}" >"$ISAACSIM_LOG" 2>&1 &

@@ -14,10 +14,12 @@ from __future__ import annotations
 import argparse
 from collections import deque
 import json
+import queue
 import socket
-import time
 import threading
+import time
 from typing import Optional
+import uuid
 
 
 ISAACSIM_HOST = "127.0.0.1"
@@ -163,11 +165,13 @@ def main():
     cmd = JsonLineSender(args.cmd_host, args.cmd_port)
 
     period = 1.0 / max(args.hz, 1e-6)
+    client_session_id = uuid.uuid4().hex
     current_episode_id = 0
     cmd_seq = 0
     prev_linear = 0.0
     prev_angular = 0.0
     spawn_reset_requested = threading.Event()
+    recording_decisions: queue.Queue[bool | None] = queue.Queue(maxsize=1)
     loop_durations = deque(maxlen=TIMING_WINDOW)
     obs_durations = deque(maxlen=TIMING_WINDOW)
     infer_durations = deque(maxlen=TIMING_WINDOW)
@@ -175,16 +179,34 @@ def main():
     sleep_durations = deque(maxlen=TIMING_WINDOW)
 
     def keyboard_listener():
-        print("[CLIENT] press s + Enter for spawn reset")
+        print(
+            "[CLIENT] press s + Enter to start the first run; later s finishes the "
+            "current run and starts the next"
+        )
         while True:
             try:
                 key = input().strip().lower()
             except EOFError:
                 break
             if key == "s":
+                if spawn_reset_requested.is_set():
+                    print("[CLIENT] reset is already in progress")
+                    continue
                 print("\n[CLIENT] spawn reset requested\n")
-                send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
                 spawn_reset_requested.set()
+                send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
+                if current_episode_id == 0:
+                    print("[CLIENT] starting the first inference run")
+                    recording_decisions.put(None)
+                else:
+                    try:
+                        answer = input(
+                            f"[CLIENT] save dashboard video for episode {current_episode_id}? "
+                            "[y/N]: "
+                        )
+                    except EOFError:
+                        answer = ""
+                    recording_decisions.put(answer.strip().lower() in {"y", "yes"})
 
     threading.Thread(target=keyboard_listener, daemon=True, name="keyboard-reset").start()
 
@@ -234,12 +256,39 @@ def main():
         sim.connect()
         infer.connect()
         cmd._connect()
-        reset_episode()
+        send_stop(cmd, repeats=args.reset_stop_repeats, gap_sec=args.reset_stop_gap_sec)
+        print("[CLIENT] ready; inference is paused until s + Enter")
 
         while True:
             if spawn_reset_requested.is_set():
-                spawn_reset_requested.clear()
+                save_recording = recording_decisions.get()
                 try:
+                    if save_recording is not None:
+                        recording_result = infer.request(
+                            {
+                                "control": "dashboard_recording",
+                                "action": "resolve",
+                                "session_id": client_session_id,
+                                "episode_id": current_episode_id,
+                                "save": save_recording,
+                            }
+                        )
+                        if recording_result.get("ok", False):
+                            saved_path = recording_result.get("path")
+                            if saved_path:
+                                print(f"[CLIENT] dashboard video saved: {saved_path}")
+                            elif recording_result.get("action") == "discarded":
+                                print("[CLIENT] dashboard video discarded")
+                            else:
+                                print(
+                                    "[CLIENT] dashboard video: "
+                                    f"{recording_result.get('message', 'nothing to resolve')}"
+                                )
+                        else:
+                            print(
+                                "[CLIENT] dashboard video decision failed: "
+                                f"{recording_result.get('error', recording_result)}"
+                            )
                     reset_episode()
                     prev_linear = 0.0
                     prev_angular = 0.0
@@ -247,6 +296,12 @@ def main():
                 except Exception as e:
                     print(f"[CLIENT] reset failed: {e}")
                     force_stop_for_reset("reset failed")
+                finally:
+                    spawn_reset_requested.clear()
+                continue
+
+            if current_episode_id == 0:
+                time.sleep(0.05)
                 continue
 
             loop_t = time.time()
@@ -271,17 +326,24 @@ def main():
                 "image_capture_timestamp": obs_resp.get("image_capture_timestamp"),
                 "image_capture_timestamps": obs_resp.get("image_capture_timestamps", {}),
                 "sim_observation_timestamp": obs_resp.get("timestamp"),
+                "session_id": client_session_id,
                 "episode_id": current_episode_id,
                 "camera_mode": obs_resp.get("camera_mode", "single"),
                 "camera_layout": obs_resp.get("camera_layout", "default"),
                 "views": obs_resp.get("views", list(images_b64.keys())),
                 "cmd_linear": prev_linear,
                 "cmd_angular": prev_angular,
+                "robot_linear_speed": obs_resp.get("robot_linear_speed"),
+                "robot_angular_speed": obs_resp.get("robot_angular_speed"),
             }
 
             infer_t = time.time()
             action = infer.request(infer_payload)
             infer_sec = time.time() - infer_t
+
+            if spawn_reset_requested.is_set():
+                send_stop(cmd)
+                continue
 
             linear = float(action.get("linear", 0.0))
             angular = float(action.get("angular", 0.0))

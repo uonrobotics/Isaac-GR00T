@@ -25,7 +25,7 @@ from transformers import AutoModel, AutoProcessor
 
 
 PROMPT_TEMPLATE = (
-    "Find the sign panel containing Area {area} and use it to choose the navigation action."
+    "Find the sign panel containing Area {area} and use it to choose the navigation action. "
 )
 IMAGE_EXTENSIONS = {".bmp", ".jpeg", ".jpg", ".png", ".webp"}
 SIGN_QUERY_MARKERS = (SIGN_QUERY_MARKER, SIGN_QUERY_MARKER.lower(), "target sign")
@@ -660,16 +660,16 @@ if __name__ == "__main__":
 
 """
 # 이미지 1장
-uv run python examples/SignNav/visualize_sign_grounding.py \
-  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/checkpoint-100000 \
-  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/processor \
-  --image /home/sujin/workspace/physical-ai/Isaac-GR00T/visualization_test/warehouse1.jpg \
-  --area 6 \
+uv run python inference_warehouse/E1-C_sign_grounding/visualize_sign_grounding.py \
+  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/checkpoint-100000/ \
+  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/processor \
+  --image /home/sujin/Pictures/signnav_ego_20260909_113114_072.jpg \
+  --area 2 \
   --output-dir /home/sujin/workspace/physical-ai/Isaac-GR00T/visualization_test/output \
   --device cuda:0
   
 # 이미지 폴더
-uv run python examples/SignNav/visualize_sign_grounding.py \
+uv run python visualize_sign_grounding.py \
   --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/checkpoint-100000 \
   --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260828--w0p5_2_2--signw0p05/processor \
   --image /home/sujin/workspace/physical-ai/Isaac-GR00T/visualization_test/from_dataset \
@@ -678,12 +678,12 @@ uv run python examples/SignNav/visualize_sign_grounding.py \
   --device cuda:0
   
 # dataset에서 랜덤 frame 긁기
-uv run python examples/SignNav/visualize_sign_grounding.py \
-  --checkpoint /path/to/checkpoint \
-  --processor /path/to/processor \
-  --dataset /path/to/lerobot_dataset \
-  --output-dir /home/sujin/workspace/physical-ai/Isaac-GR00T/visualization_test/output \
+uv run python visualize_sign_grounding.py \
+  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/checkpoint-100000/ \
+  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/processor \
+  --dataset /nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding/ \
+  --output-dir ./visualization_sign_head_test_1_5_0p5+bbox_detached \
   --num-samples-per-episode 20 \
-  --seed 42 \
+  --seed 1999 \
   --device cuda:0
 """

@@ -120,11 +120,19 @@ def add_collision_to_prim(stage, prim_path: str, approximation: str = "none") ->
         print(f"[ISAACSIM] collision prim not found: {prim_path}")
         return 0
     count = 0
+    # Instance proxies cannot be edited; expand instances in the composed stage only.
+    pending = [root]
+    while pending:
+        prim = pending.pop()
+        if prim.IsInstance():
+            prim.SetInstanceable(False)
+        pending.extend(prim.GetChildren())
     for prim in Usd.PrimRange(root):
         if not prim.IsA(UsdGeom.Mesh):
             continue
         if not prim.HasAPI(UsdPhysics.CollisionAPI):
             UsdPhysics.CollisionAPI.Apply(prim)
+        UsdPhysics.CollisionAPI(prim).CreateCollisionEnabledAttr().Set(True)
         if hasattr(UsdPhysics, "MeshCollisionAPI"):
             mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
             mesh_collision.CreateApproximationAttr().Set(approximation)
@@ -327,6 +335,7 @@ class IsaacSimServer:
         self.robot = None
         self.camera = None
         self.camera_cfg = CAMERA_PRESETS[args.camera_preset]
+        self._motion_warning_printed = False
 
     def setup(self):
         enable_extension("omni.physx")
@@ -355,6 +364,11 @@ class IsaacSimServer:
             simulation_app.update()
         add_physics_scene(self.stage)
         add_dome_light(self.stage)
+        add_collision_to_prim(
+            self.stage,
+            env_referenced_path(self.args.env_collision_prim_path),
+            "none",
+        )
         add_collision_to_prim(
             self.stage,
             env_referenced_path(self.args.floor_collision_prim_path),
@@ -454,6 +468,25 @@ class IsaacSimServer:
         x, y, yaw = get_world_xy_yaw(self.stage, ROBOT_BODY_PRIM_PATH)
         return {"x": x, "y": y, "yaw": yaw}
 
+    def get_motion(self):
+        if self.robot is None:
+            return {"linear_speed": None, "angular_speed": None}
+        try:
+            linear_velocity = np.asarray(self.robot.get_linear_velocity(), dtype=np.float64)
+            angular_velocity = np.asarray(self.robot.get_angular_velocity(), dtype=np.float64)
+            return {
+                "linear_speed": float(np.linalg.norm(linear_velocity[:2])),
+                "angular_speed": float(abs(angular_velocity[2])),
+            }
+        except Exception as exc:
+            if not self._motion_warning_printed:
+                print(
+                    "[ISAACSIM] warning: measured robot velocity is unavailable; "
+                    f"dashboard recording will fall back to commanded velocity ({exc})"
+                )
+                self._motion_warning_printed = True
+            return {"linear_speed": None, "angular_speed": None}
+
     def sync_camera_pose(self):
         pose = self.get_pose()
         base_x, base_y, base_yaw = pose["x"], pose["y"], pose["yaw"]
@@ -475,6 +508,7 @@ class IsaacSimServer:
         pose = self.sync_camera_pose()
         for _ in range(max(0, int(self.args.camera_settle_frames))):
             simulation_app.update()
+        motion = self.get_motion()
         rgba = self.camera.get_rgba()
         if rgba is None:
             raise RuntimeError("camera returned no image")
@@ -497,6 +531,8 @@ class IsaacSimServer:
             "camera_layout": "default",
             "views": ["ego_view"],
             "pose": pose,
+            "robot_linear_speed": motion["linear_speed"],
+            "robot_angular_speed": motion["angular_speed"],
             "timestamp": obs_timestamp,
         }
 
@@ -514,6 +550,11 @@ def parse_args():
     parser.add_argument("--jpeg-quality", type=int, default=85)
     parser.add_argument("--sim-port", type=int, default=8765)
     parser.add_argument("--enable-ros2-bridge", action="store_true")
+    parser.add_argument(
+        "--env-collision-prim-path",
+        default="/World",
+        help="Source environment subtree to enable mesh collisions on; empty disables this step.",
+    )
     parser.add_argument("--floor-collision-prim-path", default="")
     parser.add_argument(
         "--floor-collision-approximation",
