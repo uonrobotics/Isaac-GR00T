@@ -146,6 +146,10 @@ class Gr00tN1d7Config(PretrainedConfig):
     # grounded sign condition into the DiT state token through a small residual.
     # Zero disables the residual and reproduces the original append-only model.
     sign_action_residual_scale: float = 0.0
+    # Select the bbox/status source used to construct the grounded token during
+    # training. ``pred`` is the deployable path; ``gt_bbox_status`` is an oracle
+    # experiment that isolates the action-conditioning connection.
+    sign_training_conditioning_mode: str = "pred"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

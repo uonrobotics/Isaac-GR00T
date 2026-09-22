@@ -44,6 +44,21 @@ Grounding visualization remains separate:
 uv run python examples/SignNav/visualize_sign_grounding.py --checkpoint "$MODEL_PATH" --image /path/to/image --area 1
 ```
 
+### Training conditioning source
+
+Training uses predicted bbox/status for the grounded token by default. Select
+the source directly in `gr00t/experiment/launch_finetune.py`, keeping exactly
+one assignment active:
+
+```python
+config.model.sign_training_conditioning_mode = "pred"
+# config.model.sign_training_conditioning_mode = "gt_bbox_status"
+```
+
+The selected value is saved as `sign_training_conditioning_mode` in the
+checkpoint `config.json`. This setting controls training only; inference still
+uses `--sign-conditioning-mode` independently.
+
 Compare two dataset-mode grounding results (run from the repository root):
 
 ```bash

@@ -159,6 +159,30 @@ def test_grounded_state_residual_uses_last_condition_token():
     torch.testing.assert_close(unchanged, state_features)
 
 
+@pytest.mark.parametrize("conditioning_mode", ["pred", "gt_bbox_status"])
+def test_training_routes_selected_grounding_condition(conditioning_mode):
+    captured = {}
+    backbone_output = BatchFeature(data={"backbone_features": torch.zeros(1, 1, 4)})
+    grounding_output = BatchFeature(data={"sign_hidden": torch.zeros(1, 4)})
+
+    def append_grounded(backbone, grounding, conditioning_mode=None):
+        captured["conditioning_mode"] = conditioning_mode
+        return backbone
+
+    model = SimpleNamespace(
+        config=SimpleNamespace(sign_training_conditioning_mode=conditioning_mode),
+        prepare_input=lambda inputs: ({}, BatchFeature()),
+        backbone=lambda inputs: backbone_output,
+        _compute_sign_grounding=lambda backbone, action: grounding_output,
+        _append_grounded_token=append_grounded,
+        action_head=lambda backbone, action: BatchFeature(data={"loss": torch.tensor(0.0)}),
+        _merge_grounding_loss=lambda action, grounding: action,
+    )
+
+    Gr00tN1d7.forward(model, {})
+    assert captured["conditioning_mode"] == conditioning_mode
+
+
 @pytest.mark.parametrize("autocast", [False, True])
 def test_bbox_fp32_and_fusion_backward(autocast):
     head = SignGroundingHead(8).to(torch.bfloat16)

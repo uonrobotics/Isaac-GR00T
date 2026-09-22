@@ -840,7 +840,21 @@ class Gr00tN1d7(PreTrainedModel):
         # calling the existing action head.
         grounding_outputs = self._compute_sign_grounding(backbone_outputs, action_inputs)
         if grounding_outputs is not None:
-            backbone_outputs = self._append_grounded_token(backbone_outputs, grounding_outputs)
+            training_conditioning_mode = getattr(
+                self.config,
+                "sign_training_conditioning_mode",
+                "pred",
+            )
+            if training_conditioning_mode not in ("pred", "gt_bbox_status"):
+                raise ValueError(
+                    "sign_training_conditioning_mode must be 'pred' or "
+                    f"'gt_bbox_status', got {training_conditioning_mode!r}"
+                )
+            backbone_outputs = self._append_grounded_token(
+                backbone_outputs,
+                grounding_outputs,
+                conditioning_mode=training_conditioning_mode,
+            )
         action_outputs = self.action_head(backbone_outputs, action_inputs)
         action_outputs = self._merge_grounding_loss(action_outputs, grounding_outputs)
 

@@ -94,6 +94,7 @@ class Gr00tN1d7Pipeline(ModelPipeline):
                 sign_bbox_giou_loss_weight=self.config.model.sign_bbox_giou_loss_weight,
                 sign_loss_weight=self.config.model.sign_loss_weight,
                 sign_action_residual_scale=self.config.model.sign_action_residual_scale,
+                sign_training_conditioning_mode=self.config.model.sign_training_conditioning_mode,
                 transformers_loading_kwargs=self.transformers_loading_kwargs,
                 output_loading_info=True,
                 **self.transformers_loading_kwargs,

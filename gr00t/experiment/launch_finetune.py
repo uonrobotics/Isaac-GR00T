@@ -120,6 +120,14 @@ if __name__ == "__main__":
     config.model.sign_bbox_giou_loss_weight = 2.0
     config.model.sign_loss_weight = 0.05
     config.model.sign_action_residual_scale = 0.1
+    # Grounded-token source used during training. Keep exactly one line active.
+    # config.model.sign_training_conditioning_mode = "pred"
+    config.model.sign_training_conditioning_mode = "gt_bbox_status"
+    print(
+        "Sign training conditioning: "
+        f"{config.model.sign_training_conditioning_mode} "
+        f"(residual_scale={config.model.sign_action_residual_scale:g})"
+    )
 
     config.training.experiment_name = ft_config.experiment_name
     config.training.start_from_checkpoint = ft_config.base_model_path
