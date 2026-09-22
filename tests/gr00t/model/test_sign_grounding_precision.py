@@ -3,7 +3,7 @@
 
 from types import SimpleNamespace
 
-from gr00t.model.gr00t_n1d7.gr00t_n1d7 import Gr00tN1d7
+from gr00t.model.gr00t_n1d7.gr00t_n1d7 import Gr00tN1d7, Gr00tN1d7ActionHead
 from gr00t.model.gr00t_n1d7.sign_grounding import (
     GroundedTokenFusion,
     SignGroundingHead,
@@ -129,6 +129,34 @@ def test_action_grounded_token_ablation_selects_projection_branch(
 
     assert fusion.kwargs["zero_sign_feature"] is zero_sign
     assert fusion.kwargs["zero_bbox_feature"] is zero_bbox
+    assert backbone["grounded_token_count"] == 1
+
+
+def test_grounded_state_residual_uses_last_condition_token():
+    head = Gr00tN1d7ActionHead.__new__(Gr00tN1d7ActionHead)
+    torch.nn.Module.__init__(head)
+    head.config = SimpleNamespace(sign_action_residual_scale=0.1)
+    head.grounded_state_projector = torch.nn.Linear(4, 3, bias=False)
+    with torch.no_grad():
+        head.grounded_state_projector.weight.copy_(
+            torch.tensor(
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                ]
+            )
+        )
+
+    vl_embeds = torch.tensor([[[9.0, 9.0, 9.0, 9.0], [1.0, 2.0, 3.0, 4.0]]])
+    state_features = torch.tensor([[[10.0, 20.0, 30.0]]])
+    backbone = BatchFeature(data={"grounded_token_count": 1})
+
+    result = head._add_grounded_state_residual(backbone, vl_embeds, state_features)
+    torch.testing.assert_close(result, torch.tensor([[[10.1, 20.2, 30.3]]]))
+
+    unchanged = head._add_grounded_state_residual(BatchFeature(), vl_embeds, state_features)
+    torch.testing.assert_close(unchanged, state_features)
 
 
 @pytest.mark.parametrize("autocast", [False, True])

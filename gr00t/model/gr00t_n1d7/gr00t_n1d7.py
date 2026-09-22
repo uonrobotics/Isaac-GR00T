@@ -74,6 +74,12 @@ class Gr00tN1d7ActionHead(nn.Module):
             hidden_dim=self.hidden_size,
             output_dim=self.input_embedding_dim,
         )
+        # Grounded tokens live in the VLM condition space (normally 2048),
+        # whereas the DiT state token uses input_embedding_dim (normally 1536).
+        self.grounded_state_projector = nn.Linear(
+            config.backbone_embedding_dim,
+            self.input_embedding_dim,
+        )
         self.action_encoder = MultiEmbodimentActionEncoder(
             action_dim=self.action_dim,
             hidden_size=self.input_embedding_dim,
@@ -133,6 +139,7 @@ class Gr00tN1d7ActionHead(nn.Module):
             p.requires_grad = True
         if not tune_projector:
             self.state_encoder.requires_grad_(False)
+            self.grounded_state_projector.requires_grad_(False)
             self.action_encoder.requires_grad_(False)
             self.action_decoder.requires_grad_(False)
             if self.config.add_pos_embed:
@@ -162,6 +169,7 @@ class Gr00tN1d7ActionHead(nn.Module):
         if self.training:
             if not self.tune_projector:
                 self.state_encoder.eval()
+                self.grounded_state_projector.eval()
                 self.action_encoder.eval()
                 self.action_decoder.eval()
                 if self.config.add_pos_embed:
@@ -176,6 +184,24 @@ class Gr00tN1d7ActionHead(nn.Module):
         sample = self.beta_dist.sample([batch_size]).to(device, dtype=dtype)
         sample = (1 - sample) * self.config.noise_s
         return sample
+
+    def _add_grounded_state_residual(
+        self,
+        backbone_output: BatchFeature,
+        vl_embeds: torch.Tensor,
+        state_features: torch.Tensor,
+    ) -> torch.Tensor:
+        """Inject the appended grounded token into the DiT state token."""
+        token_count = int(backbone_output.get("grounded_token_count", 0))
+        scale = float(getattr(self.config, "sign_action_residual_scale", 0.0))
+        if token_count <= 0 or scale == 0.0:
+            return state_features
+        if token_count != 1:
+            raise ValueError(f"expected one grounded token, got {token_count}")
+
+        grounded_token = vl_embeds[:, -1:, :]
+        grounded_state = self.grounded_state_projector(grounded_token)
+        return state_features + scale * grounded_state.to(dtype=state_features.dtype)
 
     def process_backbone_output(self, backbone_output: BatchFeature) -> BatchFeature:
         backbone_features = backbone_output["backbone_features"]
@@ -229,6 +255,12 @@ class Gr00tN1d7ActionHead(nn.Module):
             )
             do_dropout = do_dropout[:, None, None].to(dtype=state_features.dtype)
             state_features = state_features * (1 - do_dropout)
+
+        state_features = self._add_grounded_state_residual(
+            backbone_output,
+            vl_embeds,
+            state_features,
+        )
 
         # Embed noised action trajectory.
         actions = action_input.action
@@ -324,6 +356,11 @@ class Gr00tN1d7ActionHead(nn.Module):
 
         # Embed state.
         state_features = self.state_encoder(state, embodiment_id)
+        state_features = self._add_grounded_state_residual(
+            backbone_output,
+            vl_embeds,
+            state_features,
+        )
 
         return BatchFeature(data={"backbone_features": vl_embeds, "state_features": state_features})
 
@@ -727,6 +764,7 @@ class Gr00tN1d7(PreTrainedModel):
             [backbone_outputs.backbone_features, grounded_token],
             dim=1,
         )
+        backbone_outputs["grounded_token_count"] = 1
 
         batch_size = grounded_token.shape[0]
         device = grounded_token.device

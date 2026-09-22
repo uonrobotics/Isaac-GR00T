@@ -93,6 +93,7 @@ class Gr00tN1d7Pipeline(ModelPipeline):
                 sign_bbox_l1_loss_weight=self.config.model.sign_bbox_l1_loss_weight,
                 sign_bbox_giou_loss_weight=self.config.model.sign_bbox_giou_loss_weight,
                 sign_loss_weight=self.config.model.sign_loss_weight,
+                sign_action_residual_scale=self.config.model.sign_action_residual_scale,
                 transformers_loading_kwargs=self.transformers_loading_kwargs,
                 output_loading_info=True,
                 **self.transformers_loading_kwargs,
@@ -112,6 +113,7 @@ class Gr00tN1d7Pipeline(ModelPipeline):
             randomly_initialized_prefixes = (
                 "grounded_token_fusion.",
                 "sign_grounding_head.",
+                "action_head.grounded_state_projector.",
             )
             randomly_initialized_keys = [
                 key for key in missing_keys if key.startswith(randomly_initialized_prefixes)

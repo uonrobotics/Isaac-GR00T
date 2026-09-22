@@ -142,6 +142,10 @@ class Gr00tN1d7Config(PretrainedConfig):
     # naturally falls back to predicted P(found).
     sign_use_status_gate: bool = True
     sign_use_gt_status_gate: bool = True
+    # In addition to the existing cross-attention append path, inject the
+    # grounded sign condition into the DiT state token through a small residual.
+    # Zero disables the residual and reproduces the original append-only model.
+    sign_action_residual_scale: float = 0.0
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
