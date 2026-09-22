@@ -11,13 +11,14 @@ import importlib.util
 import io
 import json
 from pathlib import Path
-import re
 import sys
 import time
 from typing import Any
 
-import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+
+SIGN_CROP_SIZE = 128
 
 
 def parse_args() -> argparse.Namespace:
@@ -121,26 +122,6 @@ def clamp_pixel_box(
     x2 = max(x1 + 1, min(width, int(x2)))
     y2 = max(y1 + 1, min(height, int(y2)))
     return x1, y1, x2, y2
-
-
-def pad_to_aspect_ratio(image: Image.Image, target_size: tuple[int, int]) -> Image.Image:
-    target_width, target_height = target_size
-    target_aspect = target_width / target_height
-    crop_aspect = image.width / image.height
-    if abs(crop_aspect - target_aspect) < 1e-6:
-        return image
-
-    if crop_aspect > target_aspect:
-        padded_width = image.width
-        padded_height = round(image.width / target_aspect)
-    else:
-        padded_height = image.height
-        padded_width = round(image.height * target_aspect)
-
-    canvas = Image.new("RGB", (padded_width, padded_height), color=(0, 0, 0))
-    offset = ((padded_width - image.width) // 2, (padded_height - image.height) // 2)
-    canvas.paste(image, offset)
-    return canvas
 
 
 def draw_selected_bbox_view(
@@ -272,7 +253,7 @@ def process_request(
             "bbox_x2": 0.0,
             "bbox_y2": 0.0,
         }
-        crop_image = Image.new("RGB", image.size)
+        crop_image = Image.new("RGB", (SIGN_CROP_SIZE, SIGN_CROP_SIZE))
     else:
         x1, y1, x2, y2 = clamp_pixel_box(
             tuple(round(v) for v in selected["bbox_xyxy"]),
@@ -292,8 +273,11 @@ def process_request(
             "bbox_y2": y2 / image.height,
         }
         crop_image = image.crop((crop_x1, crop_y1, crop_x2, crop_y2))
-        crop_image = pad_to_aspect_ratio(crop_image, image.size)
-        crop_image = crop_image.resize(image.size, Image.Resampling.BICUBIC)
+        # Training data stores the tight crop as a 128x128 image. The GR00T
+        # processor then pads that square to the ego-view aspect ratio.
+        crop_image = crop_image.resize(
+            (SIGN_CROP_SIZE, SIGN_CROP_SIZE), Image.Resampling.BICUBIC
+        )
 
     timing = {
         "status": "found" if selected is not None else "not_found",

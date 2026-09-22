@@ -14,21 +14,23 @@ import io
 import json
 import math
 import os
+import re
 import select
 import socket
 import time
 from typing import Optional
 
 import carb
-import numpy as np
-import omni.timeline
-import omni.usd
-from PIL import Image
+from isaacsim.core.utils.semantics import add_update_semantics
 from isaacsim.core.utils.stage import add_reference_to_stage, is_stage_loading
 from isaacsim.sensors.camera import Camera
 from isaacsim.storage.native import get_assets_root_path
+import numpy as np
 from omni.isaac.core.articulations import Articulation
 from omni.isaac.core.utils.extensions import enable_extension
+import omni.timeline
+import omni.usd
+from PIL import Image
 from pxr import Gf, PhysxSchema, Usd, UsdGeom, UsdLux, UsdPhysics
 
 
@@ -38,6 +40,7 @@ ROBOT_BODY_PRIM_PATH = "/World/Nova_Carter_ROS/chassis_link"
 ENV_SCALE_PRIM_PATH = "/World/EnvScale"
 ENV_ROOT_PRIM_PATH = "/World/EnvScale/Env"
 CAMERA_PRIM_PATH = "/World/replay_camera/front_camera"
+SIGN_GT_SEMANTIC_PREFIX = "signnav_gt_sign_"
 CAMERA_ROS_GRAPH_PATHS = [
     "/World/Nova_Carter_ROS/front_hawk",
     "/World/Nova_Carter_ROS/right_hawk",
@@ -75,6 +78,16 @@ CAMERA_PRESETS = {
         "horizontal_aperture": 20.955,
     },
 }
+
+
+def areas_from_sign_label(label: str) -> list[int]:
+    """Parse labels such as ``Area 1-5`` or ``Area 6`` from the warehouse USD."""
+    numbers = [int(value) for value in re.findall(r"\d+", str(label))]
+    if len(numbers) == 1:
+        return numbers
+    if len(numbers) == 2 and numbers[0] <= numbers[1]:
+        return list(range(numbers[0], numbers[1] + 1))
+    return []
 
 
 def set_realtime_renderer() -> None:
@@ -327,6 +340,8 @@ class IsaacSimServer:
         self.robot = None
         self.camera = None
         self.camera_cfg = CAMERA_PRESETS[args.camera_preset]
+        self._motion_warning_printed = False
+        self._sign_gt_labels: dict[str, dict] = {}
 
     def setup(self):
         enable_extension("omni.physx")
@@ -426,9 +441,94 @@ class IsaacSimServer:
         )
         cam_geom.GetFocalLengthAttr().Set(focal)
         cam_geom.GetClippingRangeAttr().Set(Gf.Vec2f(*self.camera_cfg["clipping_range"]))
+        if self.args.enable_sign_gt:
+            self._setup_sign_gt_annotator()
         for _ in range(5):
             self.sync_camera_pose()
             simulation_app.update()
+
+    def _setup_sign_gt_annotator(self):
+        """Label sign-panel prims and attach a tight rendered 2D bbox annotator."""
+        registered = []
+        for prim in self.stage.Traverse():
+            attr = prim.GetAttribute("sign_label")
+            if not attr or not attr.IsValid() or not attr.HasAuthoredValueOpinion():
+                continue
+            sign_label = str(attr.Get() or "").strip()
+            areas = areas_from_sign_label(sign_label)
+            if not areas:
+                continue
+            semantic_label = f"{SIGN_GT_SEMANTIC_PREFIX}{len(registered):03d}"
+            add_update_semantics(prim, semantic_label, type_label="class")
+            self._sign_gt_labels[semantic_label] = {
+                "sign_label": sign_label,
+                "areas": areas,
+                "prim_path": str(prim.GetPath()),
+            }
+            registered.append(str(prim.GetPath()))
+
+        if not registered:
+            raise RuntimeError("no USD prim with a valid sign_label attribute was found")
+        self.camera.add_bounding_box_2d_tight_to_frame(
+            init_params={"semanticTypes": ["class"]}
+        )
+        print(f"[SIGN GT] registered {len(registered)} sign-panel prims")
+
+    def get_visible_sign_gt(self) -> list[dict]:
+        """Return rendered, visible sign boxes in pixel xyxy coordinates."""
+        if not self.args.enable_sign_gt:
+            return []
+        frame = self.camera.get_current_frame()
+        annotation = frame.get("bounding_box_2d_tight") or {}
+        rows = annotation.get("data")
+        labels_by_id = annotation.get("info", {}).get("idToLabels", {})
+        if rows is None:
+            return []
+
+        width, height = self.camera_cfg["resolution"]
+        visible_signs = []
+        for row in rows:
+            semantic_id = int(row["semanticId"])
+            labels = labels_by_id.get(str(semantic_id), labels_by_id.get(semantic_id, {}))
+            if isinstance(labels, dict):
+                semantic_label = labels.get("class", "")
+            else:
+                semantic_label = str(labels)
+            metadata = self._sign_gt_labels.get(semantic_label)
+            if metadata is None:
+                continue
+
+            x1 = max(0, min(width - 1, int(row["x_min"])))
+            y1 = max(0, min(height - 1, int(row["y_min"])))
+            x2 = max(0, min(width, int(row["x_max"])))
+            y2 = max(0, min(height, int(row["y_max"])))
+            box_width = max(0, x2 - x1)
+            box_height = max(0, y2 - y1)
+            box_area = box_width * box_height
+            occlusion_ratio = float(row["occlusionRatio"])
+            if box_area < self.args.sign_gt_min_pixels:
+                continue
+            if box_width / width < self.args.sign_gt_min_width_ratio:
+                continue
+            if box_height / height < self.args.sign_gt_min_height_ratio:
+                continue
+            if box_area / (width * height) < self.args.sign_gt_min_area_ratio:
+                continue
+            if not math.isfinite(occlusion_ratio) or occlusion_ratio > self.args.sign_gt_max_occlusion:
+                continue
+            if self.args.sign_gt_require_in_frame and (
+                x1 <= 0 or y1 <= 0 or x2 >= width or y2 >= height
+            ):
+                continue
+            visible_signs.append(
+                {
+                    **metadata,
+                    "bbox_xyxy": [x1, y1, x2, y2],
+                    "bbox_area_pixels": box_area,
+                    "occlusion_ratio": occlusion_ratio,
+                }
+            )
+        return visible_signs
 
     def reset_robot_pose(self, x: float, y: float, yaw: float, z: float | None = None):
         z = self.args.spawn_z if z is None else float(z)
@@ -454,6 +554,25 @@ class IsaacSimServer:
         x, y, yaw = get_world_xy_yaw(self.stage, ROBOT_BODY_PRIM_PATH)
         return {"x": x, "y": y, "yaw": yaw}
 
+    def get_motion(self):
+        if self.robot is None:
+            return {"linear_speed": None, "angular_speed": None}
+        try:
+            linear_velocity = np.asarray(self.robot.get_linear_velocity(), dtype=np.float64)
+            angular_velocity = np.asarray(self.robot.get_angular_velocity(), dtype=np.float64)
+            return {
+                "linear_speed": float(np.linalg.norm(linear_velocity[:2])),
+                "angular_speed": float(abs(angular_velocity[2])),
+            }
+        except Exception as exc:
+            if not self._motion_warning_printed:
+                print(
+                    "[ISAACSIM] warning: measured robot velocity is unavailable; "
+                    f"dashboard recording will fall back to commanded velocity ({exc})"
+                )
+                self._motion_warning_printed = True
+            return {"linear_speed": None, "angular_speed": None}
+
     def sync_camera_pose(self):
         pose = self.get_pose()
         base_x, base_y, base_yaw = pose["x"], pose["y"], pose["yaw"]
@@ -475,6 +594,7 @@ class IsaacSimServer:
         pose = self.sync_camera_pose()
         for _ in range(max(0, int(self.args.camera_settle_frames))):
             simulation_app.update()
+        motion = self.get_motion()
         rgba = self.camera.get_rgba()
         if rgba is None:
             raise RuntimeError("camera returned no image")
@@ -487,6 +607,7 @@ class IsaacSimServer:
             image.save(buf, format="PNG")
         image_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
         capture_timestamp = time.time()
+        visible_signs = self.get_visible_sign_gt()
         return {
             "image_b64": image_b64,
             "images_b64": {"ego_view": image_b64},
@@ -496,7 +617,11 @@ class IsaacSimServer:
             "camera_preset": self.args.camera_preset,
             "camera_layout": "default",
             "views": ["ego_view"],
+            "visible_signs": visible_signs,
+            "image_size": {"width": image.width, "height": image.height},
             "pose": pose,
+            "robot_linear_speed": motion["linear_speed"],
+            "robot_angular_speed": motion["angular_speed"],
             "timestamp": obs_timestamp,
         }
 
@@ -513,6 +638,43 @@ def parse_args():
     parser.add_argument("--image-format", choices=["jpeg", "png"], default="jpeg")
     parser.add_argument("--jpeg-quality", type=int, default=85)
     parser.add_argument("--sim-port", type=int, default=8765)
+    parser.add_argument(
+        "--enable-sign-gt",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Return tight 2D GT boxes for visible sign_label prims.",
+    )
+    parser.add_argument("--sign-gt-min-pixels", type=int, default=16)
+    parser.add_argument(
+        "--sign-gt-min-width-ratio",
+        type=float,
+        default=0.03125,
+        help="Minimum visible bbox width/image width; matches the training-data minimum.",
+    )
+    parser.add_argument(
+        "--sign-gt-min-height-ratio",
+        type=float,
+        default=0.0375,
+        help="Minimum visible bbox height/image height; matches the training-data minimum.",
+    )
+    parser.add_argument(
+        "--sign-gt-min-area-ratio",
+        type=float,
+        default=0.00125,
+        help="Minimum visible bbox area/image area; matches the training-data minimum.",
+    )
+    parser.add_argument(
+        "--sign-gt-max-occlusion",
+        type=float,
+        default=0.2,
+        help="Reject signs whose rendered occlusion ratio exceeds this value.",
+    )
+    parser.add_argument(
+        "--sign-gt-require-in-frame",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Reject target signs clipped by an image boundary.",
+    )
     parser.add_argument("--enable-ros2-bridge", action="store_true")
     parser.add_argument("--floor-collision-prim-path", default="")
     parser.add_argument(

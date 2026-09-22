@@ -37,16 +37,28 @@ from pathlib import Path
 import queue
 import socket
 import subprocess
+import sys
 import threading
 import time
 from typing import Any
 from urllib.parse import urlparse
 
+from gr00t.data.embodiment_tags import EmbodimentTag
+from gr00t.policy.gr00t_policy import Gr00tPolicy
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from gr00t.policy.gr00t_policy import Gr00tPolicy
-from gr00t.data.embodiment_tags import EmbodimentTag
+
+INFERENCE_WAREHOUSE_DIR = Path(__file__).resolve().parent.parent
+if str(INFERENCE_WAREHOUSE_DIR) not in sys.path:
+    sys.path.insert(0, str(INFERENCE_WAREHOUSE_DIR))
+
+from dashboard_video_recorder import (  # noqa: E402
+    capture_dashboard_video,
+    cleanup_dashboard_video_recorder,
+    configure_dashboard_video_recorder,
+    resolve_dashboard_video,
+)
 
 
 LISTEN_PORT = 5000
@@ -66,6 +78,7 @@ DEFAULT_SAM3_QWEN3_WORKER = Path(__file__).resolve().parent / "sam3_qwen3_worker
 DEFAULT_SAM3_QWEN3_PYTHON = DEFAULT_SAM3_QWEN3_ROOT / ".venv" / "bin" / "python"
 DEFAULT_SEGMENTED_VIEW_KEY = "sign_crop"
 DEFAULT_TARGET_BBOX_VIEW_KEY = "target_bbox"
+SIGN_CROP_SIZE = 128
 DEFAULT_SAM3_THIRD_PARTY_ROOT = Path(__file__).resolve().parents[1] / "script" / "third_party" / "sam3"
 _bbox_lock = threading.Lock()
 _bbox_state = {
@@ -96,9 +109,25 @@ _dash_state = {
     "image_b64": None,
     "images_b64": {},
     "telemetry": {},
+    "server_info": {},
 }
 _sse_subscribers: list[queue.Queue] = []
 _sse_lock = threading.Lock()
+
+
+def build_model_info(model_path: str | Path) -> dict[str, str]:
+    checkpoint = Path(model_path).expanduser().resolve()
+    model_name = checkpoint.name
+    if checkpoint.name.startswith("checkpoint-") and checkpoint.parent.name:
+        model_name = f"{checkpoint.parent.name} / {checkpoint.name}"
+    return {"model_name": model_name, "model_path": str(checkpoint)}
+
+
+def set_dashboard_model_info(model_path: str | Path) -> dict[str, str]:
+    info = build_model_info(model_path)
+    with _dash_lock:
+        _dash_state["server_info"] = info
+    return info
 
 
 def normalize_target_area(area: int) -> int:
@@ -148,7 +177,10 @@ def print_prompt_state(prefix: str = "[PROMPT]"):
 
 
 def _keyboard_listener():
-    print("[PROMPT] Keyboard: enter 1..12 or a1..a12 to switch target area; s/show to print current prompt")
+    print(
+        "[PROMPT] This terminal: 1..12 changes target; s/show only prints the prompt. "
+        "Use s in the CLIENT terminal to save/discard and reset."
+    )
     while True:
         try:
             key = input().strip().lower()
@@ -189,6 +221,10 @@ def load_modality_config(path: str | Path):
 
 
 def _push_dashboard(images_b64, telemetry: dict):
+    telemetry = dict(telemetry)
+    with _dash_lock:
+        telemetry.update(_dash_state["server_info"])
+    telemetry["dashboard_recording"] = capture_dashboard_video(images_b64, telemetry)
     if isinstance(images_b64, dict):
         images = dict(images_b64)
         image_b64 = images.get("ego_view") or next(iter(images.values()), None)
@@ -232,6 +268,7 @@ _DASHBOARD_HTML = """\
   .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .label { color: #8d9098; font-size: 0.75rem; text-transform: uppercase; }
   .value { color: #fff; font-weight: bold; }
+  .model-path { color: #aeb3bd; font-size: 0.68rem; overflow-wrap: anywhere; }
   .bar-wrap { background: #0b0c10; border-radius: 4px; height: 10px; overflow: hidden; position: relative; }
   .bar-center { position: absolute; left: 50%; width: 2px; height: 100%; background: #575a63; transform: translateX(-50%); }
   .bar { height: 100%; border-radius: 4px; }
@@ -253,19 +290,24 @@ _DASHBOARD_HTML = """\
 <div class="grid">
   <div class="views">
     <div class="camera"><div class="title">ego view / model input</div><img id="cam" src="/image" alt="ego view"></div>
-    <div class="camera hidden" id="bbox_camera"><div class="title">selected bbox / SAM3 + Qwen3</div><img id="bbox_cam" src="/image/target_bbox" alt="selected bbox"></div>
+    <div class="camera hidden" id="bbox_camera"><div class="title" id="bbox_title">selected bbox / SAM3 + Qwen3</div><img id="bbox_cam" src="/image/target_bbox" alt="selected bbox"></div>
     <div class="camera hidden" id="crop_camera"><div class="title">sign crop / GR00T input</div><img id="crop_cam" src="/image/sign_crop" alt="sign crop"></div>
   </div>
   <div class="panel">
+    <div class="row"><span class="label">Model</span><span class="value" id="model_name">-</span></div>
+    <div class="model-path" id="model_path">-</div>
     <div class="row"><span class="label">Step</span><span class="value" id="step">-</span></div>
     <div class="row"><span class="label">Episode</span><span class="value" id="episode">-</span></div>
     <div class="row"><span class="label">Target Area</span><span class="value" id="target_area">-</span></div>
     <div class="row"><span class="label">Prompt</span><span class="value" id="prompt_version">-</span></div>
     <div class="row"><span class="label">Speed</span><span class="value" id="speed">-</span></div>
+    <div class="row"><span class="label">Robot v / w</span><span class="value" id="robot_speed">-</span></div>
+    <div class="row"><span class="label">Video</span><span class="value" id="video_state">-</span></div>
     <div class="row"><span class="label">Action Step</span><span class="value" id="action_step">-</span></div>
     <div class="row"><span class="label">Cam to Input</span><span class="value" id="latency">-</span></div>
     <div class="row"><span class="label">Target Marker</span><span class="value" id="target_marker">-</span></div>
     <div class="row"><span class="label">BBox State</span><span class="value" id="bbox_state">-</span></div>
+    <div class="row"><span class="label">Crop Source</span><span class="value" id="crop_source">-</span></div>
     <div class="row"><span class="label">SAM3+Qwen3</span><span class="value" id="sam3">-</span></div>
     <div class="label">Linear cmd</div>
     <div class="row"><span class="value" id="vx">-</span></div>
@@ -291,11 +333,22 @@ es.onopen = () => { const el = document.getElementById("conn_status"); el.textCo
 es.onerror = () => { const el = document.getElementById("conn_status"); el.textContent = "disconnected"; el.className = "status"; };
 es.onmessage = e => {
   const d = JSON.parse(e.data);
+  document.getElementById("model_name").textContent = d.model_name || "-";
+  document.getElementById("model_path").textContent = d.model_path || "-";
+  document.getElementById("model_path").title = d.model_path || "";
   document.getElementById("step").textContent = d.step ?? "-";
   document.getElementById("episode").textContent = d.episode_id ?? "-";
   document.getElementById("target_area").textContent = d.target_area !== undefined ? "AREA_" + d.target_area : "-";
   document.getElementById("prompt_version").textContent = d.prompt_version !== undefined ? "v" + d.prompt_version : "-";
   document.getElementById("speed").textContent = d.speed !== undefined ? d.speed.toFixed(3) : "-";
+  document.getElementById("robot_speed").textContent =
+    Number.isFinite(d.robot_linear_speed) && Number.isFinite(d.robot_angular_speed)
+      ? d.robot_linear_speed.toFixed(3) + " / " + d.robot_angular_speed.toFixed(3)
+      : "cmd fallback";
+  const video = d.dashboard_recording;
+  document.getElementById("video_state").textContent = video
+    ? video.state.toUpperCase() + (video.pending_count ? " (" + video.pending_count + ")" : "")
+    : "-";
   document.getElementById("action_step").textContent =
     d.action_step !== undefined && d.action_horizon !== undefined
       ? d.action_step + " / " + (d.action_horizon - 1)
@@ -310,6 +363,10 @@ es.onmessage = e => {
     bbox
       ? [bbox.bbox_status, bbox.bbox_x1, bbox.bbox_y1, bbox.bbox_x2, bbox.bbox_y2].map(v => Number(v).toFixed(3)).join(", ")
       : "-";
+  document.getElementById("crop_source").textContent = (d.sign_crop_source || "-").toUpperCase();
+  document.getElementById("bbox_title").textContent = d.sign_crop_source === "gt"
+    ? "GT BBOX -> SIGN CROP / MODEL INPUT"
+    : "SELECTED BBOX / SAM3 + QWEN3";
   document.getElementById("sam3").textContent =
     d.sam3_timing_ms && d.sam3_timing_ms.wall_ms !== undefined
       ? d.sam3_timing_ms.wall_ms.toFixed(1) + " ms"
@@ -580,7 +637,8 @@ class Sam3SegmentedViewGenerator:
         if not pipeline_module_path.exists():
             raise FileNotFoundError(f"SAM3+Qwen3 pipeline module not found: {pipeline_module_path}")
         worker_path = Path(worker_path).expanduser().resolve()
-        worker_python = Path(worker_python).expanduser().resolve()
+        # Preserve the venv executable symlink so Python uses its installed packages.
+        worker_python = Path(worker_python).expanduser().absolute()
         if not worker_path.exists():
             raise FileNotFoundError(f"SAM3+Qwen3 worker not found: {worker_path}")
         if not worker_python.exists():
@@ -847,26 +905,6 @@ def draw_selected_bbox_view(
     return canvas
 
 
-def pad_to_aspect_ratio(image: Image.Image, target_size: tuple[int, int]) -> Image.Image:
-    target_width, target_height = target_size
-    target_aspect = target_width / target_height
-    crop_aspect = image.width / image.height
-    if abs(crop_aspect - target_aspect) < 1e-6:
-        return image
-
-    if crop_aspect > target_aspect:
-        padded_width = image.width
-        padded_height = round(image.width / target_aspect)
-    else:
-        padded_height = image.height
-        padded_width = round(image.height * target_aspect)
-
-    canvas = Image.new("RGB", (padded_width, padded_height), color=(0, 0, 0))
-    offset = ((padded_width - image.width) // 2, (padded_height - image.height) // 2)
-    canvas.paste(image, offset)
-    return canvas
-
-
 def set_bbox_state(status: float, xyxy: tuple[float, float, float, float]) -> None:
     x1, y1, x2, y2 = xyxy
     with _bbox_lock:
@@ -903,6 +941,89 @@ def clamp_pixel_box(
     x2 = max(x1 + 1, min(width, int(x2)))
     y2 = max(y1 + 1, min(height, int(y2)))
     return x1, y1, x2, y2
+
+
+def select_gt_sign(req: dict, target_area: int, image: np.ndarray) -> dict[str, Any]:
+    """Select the largest visible simulator GT sign containing the target area."""
+    height, width = image.shape[:2]
+    candidates = []
+    for sign in req.get("visible_signs") or []:
+        if target_area not in [int(area) for area in sign.get("areas", [])]:
+            continue
+        raw_box = sign.get("bbox_xyxy") or []
+        if len(raw_box) != 4:
+            continue
+        box = clamp_pixel_box(tuple(round(float(value)) for value in raw_box), width, height)
+        area = (box[2] - box[0]) * (box[3] - box[1])
+        if area > 0:
+            candidates.append((area, sign, box))
+
+    if not candidates:
+        return {"found": False, "candidate_count": 0}
+    _, sign, box = max(candidates, key=lambda item: item[0])
+    return {
+        "found": True,
+        "candidate_count": len(candidates),
+        "bbox_xyxy": box,
+        "sign_label": sign.get("sign_label"),
+        "prim_path": sign.get("prim_path"),
+        "occlusion_ratio": sign.get("occlusion_ratio"),
+    }
+
+
+def make_gt_sign_crop(
+    image_np: np.ndarray,
+    gt_sign: dict[str, Any],
+    padding_ratio: float,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Build the exact crop, bbox state, and dashboard overlay used in GT mode."""
+    image = Image.fromarray(image_np.astype(np.uint8), mode="RGB")
+    width, height = image.size
+    overlay = image.copy()
+    draw = ImageDraw.Draw(overlay)
+
+    if not gt_sign.get("found"):
+        set_bbox_state(0.0, (0.0, 0.0, 0.0, 0.0))
+        crop = Image.new("RGB", (SIGN_CROP_SIZE, SIGN_CROP_SIZE))
+        draw.rectangle((0, 0, width, 24), fill="#000000")
+        draw.text((8, 6), "GT BBOX | no target marker", fill="#ffffff")
+        timing = {
+            "status": "not_found",
+            "source": "gt",
+            "target_area": None,
+            "candidate_count": 0,
+            "matched_sign_text": None,
+            "bbox_state": get_bbox_state(),
+        }
+        return np.asarray(crop), np.asarray(overlay), timing
+
+    x1, y1, x2, y2 = gt_sign["bbox_xyxy"]
+    box_width, box_height = x2 - x1, y2 - y1
+    pad_x = round(box_width * max(0.0, padding_ratio))
+    pad_y = round(box_height * max(0.0, padding_ratio))
+    crop_box = clamp_pixel_box((x1 - pad_x, y1 - pad_y, x2 + pad_x, y2 + pad_y), width, height)
+    crop = image.crop(crop_box)
+    # Match the stored training modality exactly: bbox crop resized to a
+    # 128x128 square. Gr00tN1d7Processor applies the later aspect padding.
+    crop = crop.resize((SIGN_CROP_SIZE, SIGN_CROP_SIZE), Image.Resampling.BICUBIC)
+
+    normalized_box = (x1 / width, y1 / height, x2 / width, y2 / height)
+    set_bbox_state(1.0, normalized_box)
+    line_width = max(3, round(min(image.size) / 140))
+    draw.rectangle((x1, y1, x2, y2), outline="#28e678", width=line_width)
+    label = f"GT BBOX -> CROP | {gt_sign.get('sign_label') or '-'}"
+    draw.text((x1, max(0, y1 - 18)), label, fill="#28e678", stroke_width=2, stroke_fill="#000000")
+    timing = {
+        "status": "found",
+        "source": "gt",
+        "candidate_count": gt_sign["candidate_count"],
+        "matched_sign_text": gt_sign.get("sign_label"),
+        "arrow_direction": "GT",
+        "bbox_xyxy": [x1, y1, x2, y2],
+        "bbox_state": get_bbox_state(),
+        "occlusion_ratio": gt_sign.get("occlusion_ratio"),
+    }
+    return np.asarray(crop), np.asarray(overlay), timing
 
 
 def get_policy_video_keys(policy) -> list[str]:
@@ -993,7 +1114,16 @@ def select_vel_cmd_step(vel_cmd, action_step: int) -> tuple[float, float, int, i
     return vx, wz, idx, horizon
 
 
-def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmented_view_key: str = DEFAULT_SEGMENTED_VIEW_KEY):
+def handle_client(
+    conn,
+    addr,
+    policy,
+    action_step: int,
+    segmenter=None,
+    segmented_view_key: str = DEFAULT_SEGMENTED_VIEW_KEY,
+    sign_crop_source: str = "pred",
+    gt_crop_padding_ratio: float = 0.04,
+):
     print(f"[GR00T] connected from {addr}")
     policy.reset()
     buf = b""
@@ -1019,13 +1149,40 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 print(f"[GR00T] JSON decode error: {e}")
                 continue
 
+            if req.get("control") == "dashboard_recording":
+                if req.get("action") != "resolve":
+                    control_resp = {"ok": False, "error": "unsupported recording action"}
+                else:
+                    control_resp = resolve_dashboard_video(
+                        save=bool(req.get("save", False)),
+                        episode_id=req.get("episode_id"),
+                        session_id=req.get("session_id"),
+                    )
+                conn.sendall((json.dumps(control_resp) + "\n").encode())
+                continue
+
             images_b64 = normalize_images_b64(req)
             if not images_b64:
                 raise KeyError("image")
             images_np = decode_images_b64(images_b64)
             prompt_state = get_prompt_state()
             sam3_timing = None
-            if segmenter is not None:
+            if sign_crop_source == "gt":
+                ego_image = images_np.get("ego_view")
+                if ego_image is None:
+                    ego_image = next(iter(images_np.values()), None)
+                if ego_image is None:
+                    raise ValueError("GT crop requested but no ego RGB image is available")
+                gt_sign = select_gt_sign(req, prompt_state["target_area"], ego_image)
+                segmented_np, gt_bbox_view, sam3_timing = make_gt_sign_crop(
+                    ego_image,
+                    gt_sign,
+                    gt_crop_padding_ratio,
+                )
+                images_np[segmented_view_key] = segmented_np
+                images_b64[segmented_view_key] = encode_image_b64(segmented_np)
+                images_b64[DEFAULT_TARGET_BBOX_VIEW_KEY] = encode_image_b64(gt_bbox_view)
+            elif segmenter is not None:
                 ego_image = images_np.get("ego_view")
                 if ego_image is None:
                     ego_image = next(iter(images_np.values()), None)
@@ -1072,17 +1229,21 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                     images_b64,
                     {
                         "episode_id": active_episode_id,
+                        "session_id": req.get("session_id"),
                         "prompt_version": prompt_state["prompt_version"],
                         "target_area": prompt_state["target_area"],
                         "vx": 0.0,
                         "wz": 0.0,
                         "speed": speed,
+                        "robot_linear_speed": req.get("robot_linear_speed"),
+                        "robot_angular_speed": req.get("robot_angular_speed"),
                         "step": step,
                         "action_step": action_step,
                         "action_horizon": 16,
                         "camera_to_model_input_ms": camera_to_model_input_ms,
                         "per_view_camera_latency_ms": per_view_camera_latency_ms,
                         "sam3_timing_ms": sam3_timing,
+                        "sign_crop_source": sign_crop_source,
                     },
                 )
                 print(f"[{step:05d}] WARMUP ({step + 1}/{WARMUP_STEPS})")
@@ -1110,17 +1271,21 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 images_b64,
                 {
                     "episode_id": active_episode_id,
+                    "session_id": req.get("session_id"),
                     "prompt_version": prompt_state["prompt_version"],
                     "target_area": prompt_state["target_area"],
                     "vx": vx,
                     "wz": wz,
                     "speed": speed,
+                    "robot_linear_speed": req.get("robot_linear_speed"),
+                    "robot_angular_speed": req.get("robot_angular_speed"),
                     "step": step,
                     "action_step": selected_step,
                     "action_horizon": action_horizon,
                     "camera_to_model_input_ms": camera_to_model_input_ms,
                     "per_view_camera_latency_ms": per_view_camera_latency_ms,
                     "sam3_timing_ms": sam3_timing,
+                    "sign_crop_source": sign_crop_source,
                 },
             )
             latency_text = (
@@ -1154,6 +1319,33 @@ def main():
     parser.add_argument("--port", type=int, default=LISTEN_PORT)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--web-port", type=int, default=WEB_PORT)
+    parser.add_argument(
+        "--sign-crop-source",
+        choices=("pred", "gt"),
+        default="pred",
+        help="Use the SAM3+Qwen3 prediction or simulator GT bbox for sign_crop and bbox state.",
+    )
+    parser.add_argument(
+        "--gt-crop-padding-ratio",
+        type=float,
+        default=0.04,
+        help="Padding around the tight simulator GT bbox before creating sign_crop.",
+    )
+    parser.add_argument(
+        "--dashboard-video",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Stage one dashboard MP4 per episode until the client saves or discards it.",
+    )
+    parser.add_argument(
+        "--dashboard-record-dir",
+        type=Path,
+        default=Path(__file__).resolve().parent / "recordings",
+    )
+    parser.add_argument("--dashboard-record-fps", type=float, default=5.0)
+    parser.add_argument("--dashboard-stop-linear", type=float, default=0.03)
+    parser.add_argument("--dashboard-stop-angular", type=float, default=0.03)
+    parser.add_argument("--dashboard-stop-hold-sec", type=float, default=1.5)
     parser.add_argument("--prompt-version", type=int, choices=sorted(PROMPT_TEMPLATES), default=PROMPT_VERSION)
     parser.add_argument("--target-area", type=int, choices=range(1, 13), default=DEFAULT_TARGET_AREA)
     parser.add_argument("--action-step", type=int, default=ACTION_STEP_IDX,
@@ -1214,6 +1406,26 @@ def main():
     parser.add_argument("--sam3-min-box-height-ratio", type=float, default=0.03)
     args = parser.parse_args()
 
+    model_info = set_dashboard_model_info(args.model_path)
+    dashboard_recorder = configure_dashboard_video_recorder(
+        Path(__file__).resolve().parent.name,
+        recordings_dir=args.dashboard_record_dir,
+        fps=args.dashboard_record_fps,
+        stop_linear_threshold=args.dashboard_stop_linear,
+        stop_angular_threshold=args.dashboard_stop_angular,
+        stop_hold_seconds=args.dashboard_stop_hold_sec,
+        model_name=model_info["model_name"],
+        model_path=model_info["model_path"],
+        enabled=args.dashboard_video,
+    )
+    print(
+        f"[DASHBOARD VIDEO] {'enabled' if args.dashboard_video else 'disabled'}; "
+        f"save_dir={dashboard_recorder.recordings_dir} fps={dashboard_recorder.fps:g} "
+        f"stop=(|v|<{dashboard_recorder.stop_linear_threshold:g}, "
+        f"|w|<{dashboard_recorder.stop_angular_threshold:g}) for "
+        f"{dashboard_recorder.stop_hold_seconds:g}s"
+    )
+
     with _prompt_lock:
         _prompt_state["prompt_version"] = normalize_prompt_version(args.prompt_version)
         _prompt_state["target_area"] = normalize_target_area(args.target_area)
@@ -1234,7 +1446,12 @@ def main():
     )
     video_keys = get_policy_video_keys(policy)
     segmenter = None
-    if args.enable_sam3_segmentation:
+    if args.sign_crop_source == "gt":
+        print(
+            f"[SIGN CROP] source=GT padding={args.gt_crop_padding_ratio:g}; "
+            "SAM3+Qwen3 is bypassed for model input"
+        )
+    elif args.enable_sam3_segmentation:
         segmenter = Sam3SegmentedViewGenerator(
             pipeline_module_path=args.sam3_qwen3_module_path,
             worker_path=args.sam3_qwen3_worker_path,
@@ -1293,10 +1510,13 @@ def main():
                 args.action_step,
                 segmenter=segmenter,
                 segmented_view_key=args.segmented_view_key,
+                sign_crop_source=args.sign_crop_source,
+                gt_crop_padding_ratio=args.gt_crop_padding_ratio,
             )
     except KeyboardInterrupt:
         print("\n[GR00T] Shutting down.")
     finally:
+        cleanup_dashboard_video_recorder()
         server.close()
 
 

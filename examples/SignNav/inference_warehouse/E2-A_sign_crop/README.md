@@ -16,6 +16,27 @@ Run:
 ./start_gr00t_inference_server.sh
 ```
 
+Select the crop source in `start_gr00t_inference_server.sh`:
+
+```bash
+SIGN_CROP_SOURCE="${SIGN_CROP_SOURCE:-pred}"  # SAM3 + Qwen3 prediction
+# SIGN_CROP_SOURCE="gt"                       # simulator GT bbox
+```
+
+With `gt`, Isaac Sim finds USD prims carrying `sign_label`, renders their tight
+2D boxes, and sends visible boxes to the inference server. The server selects
+the largest visible sign containing the requested Area and uses that same box
+for the normalized bbox state and `sign_crop`. If the target sign is not
+visible, the crop is black and the bbox state is all zeros. The dashboard draws
+the selected GT box in green with `GT BBOX -> CROP`.
+
+The default GT visibility filter follows the positive-bbox lower bounds measured
+from this training dataset (307,435 frames): width `0.03125`, height `0.0375`,
+and area `0.00125` of the image. It also rejects boxes over 20% occluded or
+clipped by the image boundary. Override the thresholds with
+`SIGN_GT_MIN_WIDTH_RATIO`, `SIGN_GT_MIN_HEIGHT_RATIO`,
+`SIGN_GT_MIN_AREA_RATIO`, and `SIGN_GT_MAX_OCCLUSION` when starting Isaac Sim.
+
 This entrypoint runs an online `SAM3 -> Qwen3-VL` target-marker selector:
 
 1. SAM3 proposes individual sign-panel candidates.
@@ -30,8 +51,10 @@ The bbox state uses the original `ego_view` coordinate system:
 - `bbox_x1/y1/x2/y2`: normalized xyxy coordinates in the unpadded ego image
 
 Do not pad `ego_view`, because that would change the bbox coordinate frame.
-Instead, the selected `sign_crop` is padded to the same aspect ratio as
-`ego_view`, then resized to the ego-view resolution before being fed to GR00T.
+The selected bbox crop is resized to the same 128×128 square format stored in
+the training dataset. `Gr00tN1d7Processor` then center-pads that square to the
+`ego_view` aspect ratio before its common image transform. Keeping the online
+crop square is necessary to match the training input distribution.
 
 The selector runs in a background thread because SAM3+Qwen3 can be slow. GR00T
 keeps using the latest successful crop/bbox until the next selector result is
@@ -45,5 +68,5 @@ By default the worker uses `--device auto`; pass `--sam3-device cuda` only when
 that worker venv's own PyTorch reports CUDA as available.
 Worker stderr is written to `.logs/signnav_inference_warehouse/e2a_sam3_qwen3_worker.log`.
 
-The web dashboard shows both the selected bbox overlay and the exact `sign_crop`
-image being fed into GR00T.
+The live and recorded dashboards show the checkpoint name/path, crop source,
+selected bbox overlay, and the exact `sign_crop` image fed into GR00T.

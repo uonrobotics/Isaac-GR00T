@@ -21,6 +21,10 @@ INFERENCE_PORT="${INFERENCE_PORT:-5000}"
 CMD_HOST="${CMD_HOST:-127.0.0.1}"
 CMD_PORT="${CMD_PORT:-8766}"
 CLIENT_HZ="${CLIENT_HZ:-5.0}"
+SIGN_GT_MIN_WIDTH_RATIO="${SIGN_GT_MIN_WIDTH_RATIO:-0.03125}"
+SIGN_GT_MIN_HEIGHT_RATIO="${SIGN_GT_MIN_HEIGHT_RATIO:-0.0375}"
+SIGN_GT_MIN_AREA_RATIO="${SIGN_GT_MIN_AREA_RATIO:-0.00125}"
+SIGN_GT_MAX_OCCLUSION="${SIGN_GT_MAX_OCCLUSION:-0.2}"
 ISAACSIM_EXTRA_ARGS="${ISAACSIM_EXTRA_ARGS:-}"
 
 LOG_DIR="${REPO_ROOT}/.logs/signnav_inference_warehouse"
@@ -32,6 +36,7 @@ echo "[MIN RUN] spawn=(${SPAWN_X}, ${SPAWN_Y}, ${SPAWN_Z}, yaw=${SPAWN_YAW})"
 echo "[MIN RUN] camera=${CAMERA_PRESET}"
 echo "[MIN RUN] camera_resolution=original image_format=${IMAGE_FORMAT} jpeg_quality=${JPEG_QUALITY}"
 echo "[MIN RUN] floor_collision=${FLOOR_COLLISION_PRIM_PATH} approx=${FLOOR_COLLISION_APPROXIMATION}"
+echo "[MIN RUN] sign_gt_filter=width>=${SIGN_GT_MIN_WIDTH_RATIO} height>=${SIGN_GT_MIN_HEIGHT_RATIO} area>=${SIGN_GT_MIN_AREA_RATIO} occlusion<=${SIGN_GT_MAX_OCCLUSION} in_frame=true"
 echo "[MIN RUN] isaacsim_log=${ISAACSIM_LOG}"
 
 cleanup() {
@@ -59,6 +64,11 @@ PYTHONUNBUFFERED=1 /home/sujin/isaac-sim/python.sh \
     --jpeg-quality "$JPEG_QUALITY" \
     --sim-port "$SIM_PORT" \
     --enable-ros2-bridge \
+    --sign-gt-min-width-ratio "$SIGN_GT_MIN_WIDTH_RATIO" \
+    --sign-gt-min-height-ratio "$SIGN_GT_MIN_HEIGHT_RATIO" \
+    --sign-gt-min-area-ratio "$SIGN_GT_MIN_AREA_RATIO" \
+    --sign-gt-max-occlusion "$SIGN_GT_MAX_OCCLUSION" \
+    --sign-gt-require-in-frame \
     --floor-collision-prim-path "$FLOOR_COLLISION_PRIM_PATH" \
     --floor-collision-approximation "$FLOOR_COLLISION_APPROXIMATION" \
     "${ISAACSIM_EXTRA_ARGS_ARRAY[@]}" >"$ISAACSIM_LOG" 2>&1 &

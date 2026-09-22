@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RUN_ROOT="/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop--20260828"
-MODEL_PATH="${MODEL_PATH:-}"
+# RUN_ROOT="/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop--20260907/"
+MODEL_PATH="${MODEL_PATH:-/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop/gr00t_n1d7-finetune+sim_v2_lerobot_sign_crop--20260907/checkpoint-50000/}"
 DEVICE="${DEVICE:-cuda:0}"
 WEB_PORT="${WEB_PORT:-9090}"
 PROMPT_VERSION="${PROMPT_VERSION:-1}"
 TARGET_AREA="${TARGET_AREA:-1}"
+
+# SIGN_CROP_SOURCE="${SIGN_CROP_SOURCE:-pred}"
+
+SIGN_CROP_SOURCE="${SIGN_CROP_SOURCE:-gt}"
+GT_CROP_PADDING_RATIO="${GT_CROP_PADDING_RATIO:-0.00}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
@@ -37,6 +42,8 @@ uv run python "${SCRIPT_DIR}/gr00t_inference_server.py" \
     --web-port "$WEB_PORT" \
     --prompt-version "$PROMPT_VERSION" \
     --target-area "$TARGET_AREA" \
+    --sign-crop-source "$SIGN_CROP_SOURCE" \
+    --gt-crop-padding-ratio "$GT_CROP_PADDING_RATIO" \
     --action-step 1 \
     --modality-config-path "${REPO_ROOT}/examples/SignNav/modality_config_signnav.py" \
     --enable-sam3-segmentation \
