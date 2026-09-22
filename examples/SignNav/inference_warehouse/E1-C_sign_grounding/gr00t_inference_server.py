@@ -96,9 +96,26 @@ _dash_state = {
     "image_b64": None,
     "images_b64": {},
     "telemetry": {},
+    "server_info": {},
 }
 _sse_subscribers: list[queue.Queue] = []
 _sse_lock = threading.Lock()
+
+
+def build_model_info(model_path: str | Path) -> dict[str, str]:
+    """Return stable display metadata for the checkpoint used by this process."""
+    checkpoint = Path(model_path).expanduser().resolve()
+    model_name = checkpoint.name
+    if checkpoint.name.startswith("checkpoint-") and checkpoint.parent.name:
+        model_name = f"{checkpoint.parent.name} / {checkpoint.name}"
+    return {"model_name": model_name, "model_path": str(checkpoint)}
+
+
+def set_dashboard_model_info(model_path: str | Path) -> dict[str, str]:
+    info = build_model_info(model_path)
+    with _dash_lock:
+        _dash_state["server_info"] = info
+    return info
 
 
 def normalize_target_area(area: int) -> int:
@@ -235,6 +252,9 @@ _DASHBOARD_HTML = """\
   .camera.hidden { display: none; }
   #seg_camera { grid-column: 1 / -1; }
   .panel { background: #191a20; border: 1px solid #303038; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .model-info { background: #111218; border: 1px solid #303038; border-radius: 6px; padding: 10px; }
+  .model-name { color: #7fd36b; font-size: 0.78rem; font-weight: bold; line-height: 1.35; overflow-wrap: anywhere; margin-top: 5px; }
+  .model-path { color: #aeb3bd; font-size: 0.66rem; line-height: 1.4; overflow-wrap: anywhere; margin-top: 6px; user-select: text; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .label { color: #8d9098; font-size: 0.75rem; text-transform: uppercase; }
   .value { color: #fff; font-weight: bold; }
@@ -263,6 +283,11 @@ _DASHBOARD_HTML = """\
     <div class="camera hidden" id="seg_camera"><div class="title">segmented ego view / SAM3</div><img id="seg_cam" src="/image/segmented_ego_view" alt="segmented ego view"></div>
   </div>
   <div class="panel">
+    <div class="model-info">
+      <div class="label">Loaded Model</div>
+      <div class="model-name" id="model_name">loading...</div>
+      <div class="model-path" id="model_path">-</div>
+    </div>
     <div class="row"><span class="label">Step</span><span class="value" id="step">-</span></div>
     <div class="row"><span class="label">Episode</span><span class="value" id="episode">-</span></div>
     <div class="row"><span class="label">Target Area</span><span class="value" id="target_area">-</span></div>
@@ -296,6 +321,19 @@ function barUpdate(id, val, maxVal) {
   if (val >= 0) { bar.className = "bar pos"; bar.style.left = "50%"; bar.style.right = ""; }
   else { bar.className = "bar neg"; bar.style.right = "50%"; bar.style.left = ""; }
 }
+fetch("/info")
+  .then(resp => {
+    if (!resp.ok) throw new Error("model info unavailable");
+    return resp.json();
+  })
+  .then(info => {
+    document.getElementById("model_name").textContent = info.model_name || "-";
+    document.getElementById("model_path").textContent = info.model_path || "-";
+    document.getElementById("model_path").title = info.model_path || "";
+  })
+  .catch(() => {
+    document.getElementById("model_name").textContent = "unavailable";
+  });
 const es = new EventSource("/stream");
 es.onopen = () => { const el = document.getElementById("conn_status"); el.textContent = "connected"; el.className = "status connected"; };
 es.onerror = () => { const el = document.getElementById("conn_status"); el.textContent = "disconnected"; el.className = "status"; };
@@ -412,6 +450,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 "text/html; charset=utf-8",
             )
+            return
+
+        if path == "/info":
+            with _dash_lock:
+                info = dict(_dash_state["server_info"])
+            self._send_json(info)
             return
 
         if path == "/image":
@@ -1195,6 +1239,7 @@ def main():
     parser.add_argument("--sam3-min-box-height-ratio", type=float, default=0.03)
     args = parser.parse_args()
 
+    model_info = set_dashboard_model_info(args.model_path)
     dashboard_recorder = configure_dashboard_video_recorder(
         Path(__file__).resolve().parent.name,
         recordings_dir=args.dashboard_record_dir,
@@ -1202,6 +1247,8 @@ def main():
         stop_linear_threshold=args.dashboard_stop_linear,
         stop_angular_threshold=args.dashboard_stop_angular,
         stop_hold_seconds=args.dashboard_stop_hold_sec,
+        model_name=model_info["model_name"],
+        model_path=model_info["model_path"],
         enabled=args.dashboard_video,
     )
     print(
@@ -1266,7 +1313,10 @@ def main():
 
     web_thread = threading.Thread(target=_run_web, args=(args.web_port,), daemon=True)
     web_thread.start()
-    print(f"[GR00T] Dashboard at http://0.0.0.0:{args.web_port}")
+    print(
+        f"[GR00T] Dashboard at http://0.0.0.0:{args.web_port} "
+        f"model={model_info['model_name']}"
+    )
 
     kb_thread = threading.Thread(target=_keyboard_listener, daemon=True)
     kb_thread.start()

@@ -660,12 +660,12 @@ if __name__ == "__main__":
 
 """
 # 이미지 1장
-uv run python inference_warehouse/E1-C_sign_grounding/visualize_sign_grounding.py \
-  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/checkpoint-100000/ \
-  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/processor \
-  --image /home/sujin/Pictures/signnav_ego_20260909_113114_072.jpg \
-  --area 2 \
-  --output-dir /home/sujin/workspace/physical-ai/Isaac-GR00T/visualization_test/output \
+uv run python visualize_sign_grounding.py \
+  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/checkpoint-100000/ \
+  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/processor \
+  --image /home/sujin/Pictures/signnav_ego_20260921_151238_698.jpg \
+  --area 1 \
+  --output-dir ./visualization_test \
   --device cuda:0
   
 # 이미지 폴더

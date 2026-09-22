@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RUN_ROOT="/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260831--w0p5_4_2--signw0p1/checkpoint-100000/"
+RUN_ROOT="/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/checkpoint-100000/"
 MODEL_PATH="${MODEL_PATH:-$RUN_ROOT}"
 DEVICE="${DEVICE:-cuda:0}"
 WEB_PORT="${WEB_PORT:-9090}"

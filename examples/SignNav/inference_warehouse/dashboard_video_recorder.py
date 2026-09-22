@@ -327,6 +327,8 @@ class DashboardVideoRecorder:
         stop_linear_threshold: float = DEFAULT_STOP_LINEAR_THRESHOLD,
         stop_angular_threshold: float = DEFAULT_STOP_ANGULAR_THRESHOLD,
         stop_hold_seconds: float = DEFAULT_STOP_HOLD_SECONDS,
+        model_name: str | None = None,
+        model_path: str | Path | None = None,
         ffmpeg_binary: str = "ffmpeg",
         enabled: bool = True,
         clock: Callable[[], float] | None = None,
@@ -355,6 +357,8 @@ class DashboardVideoRecorder:
         self.stop_linear_threshold = float(stop_linear_threshold)
         self.stop_angular_threshold = float(stop_angular_threshold)
         self.stop_hold_seconds = float(stop_hold_seconds)
+        self.model_name = str(model_name) if model_name else "-"
+        self.model_path = str(Path(model_path).expanduser().resolve()) if model_path else "-"
         self.ffmpeg_binary = ffmpeg_binary
         self.enabled = bool(enabled)
         self._clock = clock or time.monotonic
@@ -466,7 +470,7 @@ class DashboardVideoRecorder:
         canvas = Image.new("RGB", (self.width, self.height), _BACKGROUND)
         draw = ImageDraw.Draw(canvas)
         margin = 12
-        header_height = 42
+        header_height = 62
         panel_width = min(330, max(280, self.width // 4))
         camera_width = self.width - panel_width - margin * 3
         content_top = margin + header_height
@@ -478,6 +482,22 @@ class DashboardVideoRecorder:
             fill=_ACCENT,
             font=self._title_font,
         )
+        model_x = min(300, self.width // 3)
+        model_text = self._fit_text(
+            draw,
+            f"MODEL  {self.model_name}",
+            self._section_font,
+            self.width - model_x - margin,
+        )
+        draw.text((model_x, 15), model_text, fill=_ACCENT, font=self._section_font)
+        path_text = self._fit_text(
+            draw,
+            f"PATH  {self.model_path}",
+            self._small_font,
+            self.width - margin * 2,
+            preserve_end=True,
+        )
+        draw.text((margin, 39), path_text, fill=_MUTED, font=self._small_font)
         self._draw_camera_grid(
             canvas,
             draw,
@@ -490,6 +510,30 @@ class DashboardVideoRecorder:
             (camera_width + margin * 2, content_top, panel_width, content_height),
         )
         return np.asarray(canvas, dtype=np.uint8)
+
+    @staticmethod
+    def _fit_text(
+        draw: ImageDraw.ImageDraw,
+        text: str,
+        font: ImageFont.ImageFont,
+        max_width: int,
+        *,
+        preserve_end: bool = False,
+    ) -> str:
+        """Fit one metadata line while retaining the useful end of long paths."""
+        if draw.textlength(text, font=font) <= max_width:
+            return text
+        ellipsis = "..."
+        if preserve_end:
+            prefix = text.split(maxsplit=1)[0] + "  ..."
+            suffix = text
+            while suffix and draw.textlength(prefix + suffix, font=font) > max_width:
+                suffix = suffix[1:]
+            return prefix + suffix
+        fitted = text
+        while fitted and draw.textlength(fitted + ellipsis, font=font) > max_width:
+            fitted = fitted[:-1]
+        return fitted + ellipsis
 
     def resolve(
         self,
@@ -1048,6 +1092,8 @@ def configure_dashboard_video_recorder(
     stop_linear_threshold: float = DEFAULT_STOP_LINEAR_THRESHOLD,
     stop_angular_threshold: float = DEFAULT_STOP_ANGULAR_THRESHOLD,
     stop_hold_seconds: float = DEFAULT_STOP_HOLD_SECONDS,
+    model_name: str | None = None,
+    model_path: str | Path | None = None,
     ffmpeg_binary: str = "ffmpeg",
     enabled: bool = True,
 ) -> DashboardVideoRecorder:
@@ -1067,6 +1113,8 @@ def configure_dashboard_video_recorder(
             stop_linear_threshold=stop_linear_threshold,
             stop_angular_threshold=stop_angular_threshold,
             stop_hold_seconds=stop_hold_seconds,
+            model_name=model_name,
+            model_path=model_path,
             ffmpeg_binary=ffmpeg_binary,
             enabled=enabled,
         )

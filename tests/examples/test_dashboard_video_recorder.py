@@ -98,6 +98,23 @@ def test_compositor_always_returns_fixed_rgb_frame(tmp_path):
     assert np.any(frame != frame[0, 0])
 
 
+def test_recording_header_contains_model_identity(tmp_path):
+    checkpoint = tmp_path / "experiment-w1_5_0p5" / "checkpoint-100000"
+    recorder = _make_recorder(
+        tmp_path,
+        FakeClock(),
+        model_name="experiment-w1_5_0p5 / checkpoint-100000",
+        model_path=checkpoint,
+    )
+
+    frame = recorder.compose_frame(_image_b64(), {"episode_id": 1, "step": 0})
+
+    assert recorder.model_name == "experiment-w1_5_0p5 / checkpoint-100000"
+    assert recorder.model_path == str(checkpoint.resolve())
+    # The expanded 62-pixel header contains the title, model name, and checkpoint path.
+    assert np.unique(frame[:62].reshape(-1, 3), axis=0).shape[0] > 3
+
+
 def test_stop_is_armed_only_after_motion_and_requires_sustained_stop(tmp_path):
     clock = FakeClock()
     recorder = _make_recorder(tmp_path, clock)

@@ -6,6 +6,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 source "${SCRIPT_DIR}/setup_IsaacSim-ros_workspace.sh"
 
 ENV_USD_PATH="${ENV_USD_PATH:-/nas/sujinkim/data/SignNav/_assets/warehouse/Industrial_NVD@10012/Industrial_NVD@10012/Assets/ArchVis/Industrial/Stages/IsaacWarehouse.usd}"
+# ENV_USD_PATH="${ENV_USD_PATH:-/nas/sujinkim/data/SignNav/_assets/warehouse/Industrial_NVD@10012/Industrial_NVD@10012/Assets/ArchVis/Industrial/Stages/IsaacWarehouse_eval.usd}"
+# ENV_USD_PATH="${ENV_USD_PATH:-/nas/sujinkim/data/SignNav/_assets/warehouse/Industrial_NVD@10012/Industrial_NVD@10012/Assets/ArchVis/Industrial/Stages/IsaacWarehouse_eval_2.usd}"
 SPAWN_X="${SPAWN_X:-21.0}"
 SPAWN_Y="${SPAWN_Y:-31.0}"
 SPAWN_Z="${SPAWN_Z:-0.0}"
