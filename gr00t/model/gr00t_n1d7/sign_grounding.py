@@ -156,9 +156,17 @@ class GroundedTokenFusion(nn.Module):
         found_status_id: int = 1,
         use_status_gate: bool = True,
         use_gt_status_gate: bool = True,
+        zero_sign_feature: bool = False,
+        zero_bbox_feature: bool = False,
     ) -> torch.Tensor:
         sign_feature = self.sign_projector(sign_hidden)
         bbox_feature = self.bbox_projector(bbox_cxcywh.to(dtype=self.bbox_projector.weight.dtype))
+        # Inference-only branch ablations are applied after projection so the
+        # removed branch contributes neither its signal nor its projector bias.
+        if zero_sign_feature:
+            sign_feature = torch.zeros_like(sign_feature)
+        if zero_bbox_feature:
+            bbox_feature = torch.zeros_like(bbox_feature)
         grounded_feature = self.fusion(torch.cat([sign_feature, bbox_feature], dim=-1))
 
         if use_status_gate:

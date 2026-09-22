@@ -32,6 +32,105 @@ def test_prepare_input_preserves_bbox_precision():
         assert batch.state.dtype == torch.bfloat16
 
 
+@pytest.mark.parametrize(
+    ("mode", "expected_bbox_key", "uses_gt_status"),
+    [
+        ("pred", "sign_bbox_cxcywh", False),
+        ("gt_bbox", "gt_sign_bbox_cxcywh", False),
+        ("gt_bbox_status", "gt_sign_bbox_cxcywh", True),
+    ],
+)
+def test_action_grounded_token_selects_requested_bbox(mode, expected_bbox_key, uses_gt_status):
+    class CaptureFusion:
+        def __call__(self, **kwargs):
+            self.kwargs = kwargs
+            return torch.zeros(1, 1, 4)
+
+    fusion = CaptureFusion()
+    model = SimpleNamespace(
+        grounded_token_fusion=fusion,
+        config=SimpleNamespace(
+            sign_found_status_id=1,
+            sign_use_status_gate=True,
+            sign_use_gt_status_gate=True,
+        ),
+    )
+    grounding = BatchFeature(
+        data={
+            "sign_hidden": torch.ones(1, 4),
+            "sign_bbox_cxcywh": torch.tensor([[0.1, 0.2, 0.3, 0.4]]),
+            "gt_sign_bbox_cxcywh": torch.tensor([[0.5, 0.6, 0.2, 0.1]]),
+            "sign_status_logits": torch.tensor([[0.0, 1.0, 0.0]]),
+            "gt_sign_status": torch.ones(1, dtype=torch.long),
+        }
+    )
+    backbone = BatchFeature(
+        data={
+            "backbone_features": torch.zeros(1, 2, 4),
+            "backbone_attention_mask": torch.ones(1, 2),
+        }
+    )
+
+    Gr00tN1d7._append_grounded_token(model, backbone, grounding, conditioning_mode=mode)
+
+    torch.testing.assert_close(fusion.kwargs["bbox_cxcywh"], grounding[expected_bbox_key])
+    if uses_gt_status:
+        torch.testing.assert_close(fusion.kwargs["gt_status"], grounding.gt_sign_status)
+    else:
+        assert fusion.kwargs["gt_status"] is None
+
+
+@pytest.mark.parametrize(
+    ("ablation_mode", "zero_sign", "zero_bbox"),
+    [
+        ("normal", False, False),
+        ("hidden_only", False, True),
+        ("bbox_only", True, False),
+    ],
+)
+def test_action_grounded_token_ablation_selects_projection_branch(
+    ablation_mode, zero_sign, zero_bbox
+):
+    class CaptureFusion:
+        def __call__(self, **kwargs):
+            self.kwargs = kwargs
+            return torch.zeros(1, 1, 4)
+
+    fusion = CaptureFusion()
+    model = SimpleNamespace(
+        grounded_token_fusion=fusion,
+        config=SimpleNamespace(
+            sign_found_status_id=1,
+            sign_use_status_gate=True,
+            sign_use_gt_status_gate=True,
+        ),
+    )
+    grounding = BatchFeature(
+        data={
+            "sign_hidden": torch.ones(1, 4),
+            "sign_bbox_cxcywh": torch.tensor([[0.1, 0.2, 0.3, 0.4]]),
+            "sign_status_logits": torch.tensor([[0.0, 1.0, 0.0]]),
+        }
+    )
+    backbone = BatchFeature(
+        data={
+            "backbone_features": torch.zeros(1, 2, 4),
+            "backbone_attention_mask": torch.ones(1, 2),
+        }
+    )
+
+    Gr00tN1d7._append_grounded_token(
+        model,
+        backbone,
+        grounding,
+        conditioning_mode="pred",
+        ablation_mode=ablation_mode,
+    )
+
+    assert fusion.kwargs["zero_sign_feature"] is zero_sign
+    assert fusion.kwargs["zero_bbox_feature"] is zero_bbox
+
+
 @pytest.mark.parametrize("autocast", [False, True])
 def test_bbox_fp32_and_fusion_backward(autocast):
     head = SignGroundingHead(8).to(torch.bfloat16)

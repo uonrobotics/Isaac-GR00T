@@ -194,6 +194,10 @@ class Gr00tPolicy(BasePolicy):
                 "state": {k: v[i] for k, v in value["state"].items()},
                 "language": {k: v[i] for k, v in value["language"].items()},
             }
+            if "metadata" in value:
+                unbatched_value["metadata"] = {
+                    key: np.asarray(field)[i] for key, field in value["metadata"].items()
+                }
             unbatched_obs.append(unbatched_value)
         return unbatched_obs
 
@@ -212,6 +216,7 @@ class Gr00tPolicy(BasePolicy):
             actions={},  # No ground truth actions during inference
             text=observation["language"][self.language_key][0],
             embodiment=self.embodiment_tag,
+            metadata=observation.get("metadata"),
         )
 
     def check_observation(self, observation: dict[str, Any]) -> None:
@@ -414,7 +419,7 @@ class Gr00tPolicy(BasePolicy):
 
         # Step 4: Run model inference to predict actions
         with torch.inference_mode():
-            model_pred = self.model.get_action(**collated_inputs)
+            model_pred = self.model.get_action(**collated_inputs, options=options)
         normalized_action = model_pred["action_pred"].float()
 
         # Step 5: Decode actions from normalized space back to physical units

@@ -13,6 +13,27 @@ Run:
 ./start_gr00t_inference_server.sh
 ```
 
+GT bbox action-conditioning experiment:
+
+```bash
+# Baseline: predicted bbox and predicted status gate
+SIGN_CONDITIONING_MODE=pred ./start_gr00t_inference_server.sh
+
+# Simulator GT coordinates, predicted status gate
+SIGN_CONDITIONING_MODE=gt_bbox ./start_gr00t_inference_server.sh
+
+# Simulator GT coordinates and GT found/not-found gate (oracle run)
+SIGN_CONDITIONING_MODE=gt_bbox_status ./start_gr00t_inference_server.sh
+```
+
+The Isaac Sim observation server registers warehouse prims carrying a
+`sign_label` attribute and returns their rendered tight 2D boxes. The client
+forwards those boxes, and the E1-C server selects the largest visible panel that
+contains the current target area. It converts pixel `xyxy` into normalized
+`cxcywh` before policy preprocessing. The dashboard draws predicted boxes in red
+and simulator GT boxes in green. In a GT mode the green overlay reads
+`GT BBOX -> ACTION`, and the `Action BBox` row reports the active mode.
+
 The script selects the latest usable nested `checkpoint-*` containing both
 `config.json` and `processor_config.json`. Override it with
 `MODEL_PATH=/path/to/checkpoint`.

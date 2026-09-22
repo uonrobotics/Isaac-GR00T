@@ -668,26 +668,56 @@ class Gr00tN1d7(PreTrainedModel):
             found_status_id=self.config.sign_found_status_id,
         )
         grounding_outputs.update(grounding_losses)
+        if gt_bbox is not None:
+            grounding_outputs["gt_sign_bbox_cxcywh"] = gt_bbox
         if gt_status is not None:
             grounding_outputs["gt_sign_status"] = gt_status
         return BatchFeature(data=grounding_outputs)
 
     def _append_grounded_token(
-        self, backbone_outputs: BatchFeature, grounding_outputs: BatchFeature
+        self,
+        backbone_outputs: BatchFeature,
+        grounding_outputs: BatchFeature,
+        conditioning_mode: str | None = None,
+        ablation_mode: str = "normal",
     ) -> BatchFeature:
+        if conditioning_mode not in (None, "pred", "gt_bbox", "gt_bbox_status"):
+            raise ValueError(f"unsupported sign conditioning mode: {conditioning_mode!r}")
+        if ablation_mode not in ("normal", "hidden_only", "bbox_only"):
+            raise ValueError(f"unsupported sign ablation mode: {ablation_mode!r}")
+
+        gt_bbox = grounding_outputs.get("gt_sign_bbox_cxcywh", None)
         gt_status = grounding_outputs.get("gt_sign_status", None)
-        # The fused token is built from both semantic sign_hidden and predicted
-        # bbox. The bbox is intentionally not detached, so action loss can still
-        # flow back through bbox_projector -> bbox_head -> sign_hidden if joint
-        # fine-tuning is enabled.
+        if conditioning_mode in ("gt_bbox", "gt_bbox_status"):
+            if gt_bbox is None:
+                raise ValueError(
+                    f"sign conditioning mode {conditioning_mode!r} requires "
+                    "gt_sign_bbox_cxcywh"
+                )
+            conditioning_bbox = gt_bbox
+        else:
+            conditioning_bbox = grounding_outputs.sign_bbox_cxcywh
+
+        # ``None`` preserves the supervised-training path, which may use the GT
+        # status gate. Explicit inference modes make the ablation unambiguous:
+        # gt_bbox replaces only coordinates, while gt_bbox_status replaces both.
+        if conditioning_mode in ("pred", "gt_bbox"):
+            conditioning_gt_status = None
+        else:
+            conditioning_gt_status = gt_status
+        # The fused token combines semantic sign_hidden with the selected bbox.
+        # Training and normal inference use the prediction; oracle evaluation can
+        # substitute simulator GT without altering the predicted diagnostic output.
         grounded_token = self.grounded_token_fusion(
             sign_hidden=grounding_outputs.sign_hidden,
-            bbox_cxcywh=grounding_outputs.sign_bbox_cxcywh,
+            bbox_cxcywh=conditioning_bbox,
             status_logits=grounding_outputs.sign_status_logits,
-            gt_status=gt_status,
+            gt_status=conditioning_gt_status,
             found_status_id=self.config.sign_found_status_id,
             use_status_gate=self.config.sign_use_status_gate,
             use_gt_status_gate=self.config.sign_use_gt_status_gate,
+            zero_sign_feature=ablation_mode == "bbox_only",
+            zero_bbox_feature=ablation_mode == "hidden_only",
         )
 
         # DiT reads ``backbone_features`` as encoder_hidden_states. Appending here
@@ -792,7 +822,23 @@ class Gr00tN1d7(PreTrainedModel):
         # condition sequence.
         grounding_outputs = self._compute_sign_grounding(backbone_outputs, action_inputs)
         if grounding_outputs is not None:
-            backbone_outputs = self._append_grounded_token(backbone_outputs, grounding_outputs)
+            inference_options = options or {}
+            conditioning_mode = inference_options.get("sign_conditioning_mode", "pred")
+            ablation_mode = inference_options.get("sign_ablation_mode", "normal")
+            if ablation_mode not in (
+                "normal",
+                "no_grounded_token",
+                "hidden_only",
+                "bbox_only",
+            ):
+                raise ValueError(f"unsupported sign ablation mode: {ablation_mode!r}")
+            if ablation_mode != "no_grounded_token":
+                backbone_outputs = self._append_grounded_token(
+                    backbone_outputs,
+                    grounding_outputs,
+                    conditioning_mode=conditioning_mode,
+                    ablation_mode=ablation_mode,
+                )
         action_outputs = self.action_head.get_action(backbone_outputs, action_inputs, options)
         if grounding_outputs is not None:
             for key, value in grounding_outputs.items():

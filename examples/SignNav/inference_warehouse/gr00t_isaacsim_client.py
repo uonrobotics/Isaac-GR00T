@@ -331,6 +331,8 @@ def main():
                 "camera_mode": obs_resp.get("camera_mode", "single"),
                 "camera_layout": obs_resp.get("camera_layout", "default"),
                 "views": obs_resp.get("views", list(images_b64.keys())),
+                "visible_signs": obs_resp.get("visible_signs", []),
+                "image_size": obs_resp.get("image_size"),
                 "cmd_linear": prev_linear,
                 "cmd_angular": prev_angular,
                 "robot_linear_speed": obs_resp.get("robot_linear_speed"),

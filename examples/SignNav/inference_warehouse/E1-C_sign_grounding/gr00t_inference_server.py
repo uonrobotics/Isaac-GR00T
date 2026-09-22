@@ -68,6 +68,8 @@ WARMUP_STEPS = 4
 ACTION_STEP_IDX = 1
 DEFAULT_MODALITY_CONFIG = Path(__file__).resolve().parents[2] / "modality_config_signnav.py"
 DEFAULT_TARGET_AREA = 1
+DEFAULT_SIGN_CONDITIONING_MODE = "pred"
+DEFAULT_SIGN_ABLATION_MODE = "normal"
 DEFAULT_SIGN_SEG_GENERATOR = Path(
     "/home/sujin/workspace/physical-ai/sign_seg_test/jobs/segmented_rgb_generator.py"
 )
@@ -301,6 +303,8 @@ _DASHBOARD_HTML = """\
     <div class="row"><span class="label">Ground Infer</span><span class="value" id="ground_infer">-</span></div>
     <div class="row"><span class="label">Model Total</span><span class="value" id="model_total">-</span></div>
     <div class="row"><span class="label">Grounding</span><span class="value" id="grounding">-</span></div>
+    <div class="row"><span class="label">Action BBox</span><span class="value" id="action_bbox">-</span></div>
+    <div class="row"><span class="label">Ablation</span><span class="value" id="ablation">-</span></div>
     <div class="row"><span class="label">SAM3</span><span class="value" id="sam3">-</span></div>
     <div class="label">Linear cmd</div>
     <div class="row"><span class="value" id="vx">-</span></div>
@@ -364,6 +368,12 @@ es.onmessage = e => {
     d.sign_grounding && d.sign_grounding.ok
       ? "status " + d.sign_grounding.pred_status + " / P " + d.sign_grounding.found_probability.toFixed(3)
       : (d.sign_grounding && d.sign_grounding.error ? "err" : "-");
+  document.getElementById("action_bbox").textContent =
+    d.sign_conditioning_mode
+      ? d.sign_conditioning_mode.toUpperCase() + (d.oracle_sign && d.oracle_sign.found ? " / GT FOUND" : "")
+      : "-";
+  document.getElementById("ablation").textContent =
+    d.sign_ablation_mode ? d.sign_ablation_mode.toUpperCase() : "-";
   document.getElementById("sam3").textContent =
     d.sam3_timing_ms && d.sam3_timing_ms.wall_ms !== undefined
       ? d.sam3_timing_ms.wall_ms.toFixed(1) + " ms"
@@ -775,7 +785,14 @@ def compute_camera_latency_ms(req: dict, model_input_timestamp: float, video_key
     return None, per_view_ms
 
 
-def build_observation(frame_buffers, speed: float, language: str, video_keys: list[str], video_horizon: int):
+def build_observation(
+    frame_buffers,
+    speed: float,
+    language: str,
+    video_keys: list[str],
+    video_horizon: int,
+    grounding_metadata: dict | None = None,
+):
     video = {}
     for key in video_keys:
         frames = list(frame_buffers[key])
@@ -785,7 +802,7 @@ def build_observation(frame_buffers, speed: float, language: str, video_keys: li
             frames.insert(0, frames[0])
         video[key] = np.stack(frames[-video_horizon:], axis=0)[np.newaxis].astype(np.uint8)
 
-    return {
+    observation = {
         "video": video,
         "state": {
             "speed": np.array([[[float(speed)]]], dtype=np.float32),
@@ -793,6 +810,62 @@ def build_observation(frame_buffers, speed: float, language: str, video_keys: li
         "language": {
             "annotation.human.action.task_description": [[language]],
         },
+    }
+    if grounding_metadata is not None:
+        observation["metadata"] = {
+            "gt_sign_bbox_cxcywh": np.asarray(
+                [grounding_metadata["gt_sign_bbox_cxcywh"]], dtype=np.float32
+            ),
+            "gt_sign_status": np.asarray(
+                [grounding_metadata["gt_sign_status"]], dtype=np.int64
+            ),
+        }
+    return observation
+
+
+def select_oracle_sign(req: dict, target_area: int) -> dict:
+    """Select the largest rendered sign whose USD label contains target_area."""
+    image_size = req.get("image_size") or {}
+    width = int(image_size.get("width") or 0)
+    height = int(image_size.get("height") or 0)
+    candidates = []
+    for sign in req.get("visible_signs") or []:
+        if target_area not in [int(area) for area in sign.get("areas", [])]:
+            continue
+        box = np.asarray(sign.get("bbox_xyxy", []), dtype=np.float32)
+        if box.shape != (4,) or width <= 0 or height <= 0:
+            continue
+        x1, y1, x2, y2 = box.tolist()
+        area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+        if area <= 0:
+            continue
+        candidates.append((area, sign, box))
+
+    if not candidates:
+        return {
+            "found": False,
+            "gt_sign_status": 0,
+            "gt_sign_bbox_cxcywh": [0.0, 0.0, 0.0, 0.0],
+            "candidate_count": 0,
+        }
+
+    _, selected, box = max(candidates, key=lambda item: item[0])
+    x1, y1, x2, y2 = box.tolist()
+    bbox_cxcywh = [
+        (x1 + x2) / (2.0 * width),
+        (y1 + y2) / (2.0 * height),
+        (x2 - x1) / width,
+        (y2 - y1) / height,
+    ]
+    return {
+        "found": True,
+        "gt_sign_status": 1,
+        "gt_sign_bbox_cxcywh": bbox_cxcywh,
+        "gt_sign_bbox_xyxy": [x1 / width, y1 / height, x2 / width, y2 / height],
+        "candidate_count": len(candidates),
+        "sign_label": selected.get("sign_label"),
+        "prim_path": selected.get("prim_path"),
+        "occlusion_ratio": selected.get("occlusion_ratio"),
     }
 
 
@@ -872,6 +945,9 @@ def draw_grounding_result(
     pred_status: int,
     found_probability: float,
     target_area: int,
+    oracle_sign: dict | None = None,
+    conditioning_mode: str = "pred",
+    ablation_mode: str = "normal",
 ) -> np.ndarray:
     result = Image.fromarray(image_np.astype(np.uint8), mode="RGB").copy()
     draw = ImageDraw.Draw(result)
@@ -879,8 +955,30 @@ def draw_grounding_result(
     if pred_status != 0:
         draw.rectangle(pixel_box(pred_xyxy, result.width, result.height), outline=(255, 40, 40), width=line_width)
 
+    oracle_found = bool(oracle_sign and oracle_sign.get("found"))
+    if oracle_found:
+        gt_xyxy = np.asarray(oracle_sign["gt_sign_bbox_xyxy"], dtype=np.float32)
+        gt_pixels = pixel_box(gt_xyxy, result.width, result.height)
+        draw.rectangle(gt_pixels, outline=(40, 230, 120), width=line_width + 1)
+        gt_label = "GT BBOX -> ACTION" if conditioning_mode.startswith("gt_bbox") else "GT BBOX"
+        font = load_overlay_font(result)
+        draw.text(
+            (gt_pixels[0], max(0, gt_pixels[1] - max(24, font.size if hasattr(font, "size") else 24))),
+            gt_label,
+            font=font,
+            fill=(40, 230, 120),
+            stroke_width=2,
+            stroke_fill=(0, 0, 0),
+        )
+
     status_label = "no bbox" if pred_status == 0 else str(pred_status)
-    label = f"goal: area {target_area}\nbbox status: {status_label}\nP(found): {found_probability:.3f}"
+    label = (
+        f"goal: area {target_area}\n"
+        f"action bbox: {conditioning_mode}\n"
+        f"ablation: {ablation_mode}\n"
+        f"pred status: {status_label}\n"
+        f"P(found): {found_probability:.3f}"
+    )
     font = load_overlay_font(result)
     spacing = max(4, round(min(result.size) / 120))
     text_box = draw.multiline_textbbox((0, 0), label, font=font, spacing=spacing)
@@ -908,7 +1006,15 @@ def draw_grounding_result(
     return np.asarray(result, dtype=np.uint8)
 
 
-def predict_sign_grounding(policy, obs: dict, target_area: int, found_status_id: int = 1) -> tuple[np.ndarray, dict]:
+def predict_sign_grounding(
+    policy,
+    obs: dict,
+    target_area: int,
+    found_status_id: int = 1,
+    oracle_sign: dict | None = None,
+    conditioning_mode: str = "pred",
+    ablation_mode: str = "normal",
+) -> tuple[np.ndarray, dict]:
     video = {
         key: value[0]
         for key, value in obs["video"].items()
@@ -957,6 +1063,9 @@ def predict_sign_grounding(policy, obs: dict, target_area: int, found_status_id:
         pred_status,
         float(probabilities[found_idx]),
         target_area,
+        oracle_sign=oracle_sign,
+        conditioning_mode=conditioning_mode,
+        ablation_mode=ablation_mode,
     )
     telemetry = {
         "ok": True,
@@ -964,11 +1073,23 @@ def predict_sign_grounding(policy, obs: dict, target_area: int, found_status_id:
         "found_probability": float(probabilities[found_idx]),
         "pred_bbox_cxcywh": pred_cxcywh.tolist(),
         "pred_bbox_xyxy": pred_xyxy.tolist(),
+        "conditioning_mode": conditioning_mode,
+        "ablation_mode": ablation_mode,
+        "oracle_sign": oracle_sign,
     }
     return rendered, telemetry
 
 
-def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmented_view_key: str = DEFAULT_SEGMENTED_VIEW_KEY):
+def handle_client(
+    conn,
+    addr,
+    policy,
+    action_step: int,
+    sign_conditioning_mode: str = DEFAULT_SIGN_CONDITIONING_MODE,
+    sign_ablation_mode: str = DEFAULT_SIGN_ABLATION_MODE,
+    segmenter=None,
+    segmented_view_key: str = DEFAULT_SEGMENTED_VIEW_KEY,
+):
     print(f"[GR00T] connected from {addr}")
     policy.reset()
     buf = b""
@@ -1068,6 +1189,8 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                         "step": step,
                         "action_step": action_step,
                         "action_horizon": 16,
+                        "sign_conditioning_mode": sign_conditioning_mode,
+                        "sign_ablation_mode": sign_ablation_mode,
                         "camera_to_model_input_ms": camera_to_model_input_ms,
                         "per_view_camera_latency_ms": per_view_camera_latency_ms,
                         "sam3_timing_ms": sam3_timing,
@@ -1083,9 +1206,21 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                 prompt_state["language"],
                 video_keys,
                 video_horizon,
+                grounding_metadata=(
+                    select_oracle_sign(req, prompt_state["target_area"])
+                    if sign_conditioning_mode.startswith("gt_bbox")
+                    else None
+                ),
             )
+            oracle_sign = select_oracle_sign(req, prompt_state["target_area"])
             action_start_t = time.time()
-            action, _ = policy.get_action(obs)
+            action, _ = policy.get_action(
+                obs,
+                options={
+                    "sign_conditioning_mode": sign_conditioning_mode,
+                    "sign_ablation_mode": sign_ablation_mode,
+                },
+            )
             action_inference_ms = (time.time() - action_start_t) * 1000.0
             sign_grounding = None
             grounding_inference_ms = None
@@ -1096,6 +1231,9 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                     policy,
                     obs,
                     prompt_state["target_area"],
+                    oracle_sign=oracle_sign,
+                    conditioning_mode=sign_conditioning_mode,
+                    ablation_mode=sign_ablation_mode,
                 )
                 grounding_inference_ms = (time.time() - grounding_start_t) * 1000.0
                 images_b64[GROUNDING_VIEW_KEY] = encode_image_b64(grounding_np)
@@ -1139,6 +1277,9 @@ def handle_client(conn, addr, policy, action_step: int, segmenter=None, segmente
                     "model_total_ms": model_total_ms,
                     "sam3_timing_ms": sam3_timing,
                     "sign_grounding": sign_grounding,
+                    "sign_conditioning_mode": sign_conditioning_mode,
+                    "sign_ablation_mode": sign_ablation_mode,
+                    "oracle_sign": oracle_sign,
                 },
             )
             latency_text = (
@@ -1202,6 +1343,18 @@ def main():
     parser.add_argument("--target-area", type=int, choices=range(1, 13), default=DEFAULT_TARGET_AREA)
     parser.add_argument("--action-step", type=int, default=ACTION_STEP_IDX,
                         help="Which step of the 16-step action horizon to execute (0-based)")
+    parser.add_argument(
+        "--sign-conditioning-mode",
+        choices=("pred", "gt_bbox", "gt_bbox_status"),
+        default=DEFAULT_SIGN_CONDITIONING_MODE,
+        help="BBox/status source used to construct the action conditioning token.",
+    )
+    parser.add_argument(
+        "--sign-ablation-mode",
+        choices=("normal", "no_grounded_token", "hidden_only", "bbox_only"),
+        default=DEFAULT_SIGN_ABLATION_MODE,
+        help="Inference-only ablation of the grounded-token inputs.",
+    )
     parser.add_argument("--modality-config-path", default=str(DEFAULT_MODALITY_CONFIG))
     parser.add_argument(
         "--enable-sam3-segmentation",
@@ -1335,6 +1488,8 @@ def main():
                 addr,
                 policy,
                 args.action_step,
+                sign_conditioning_mode=args.sign_conditioning_mode,
+                sign_ablation_mode=args.sign_ablation_mode,
                 segmenter=segmenter,
                 segmented_view_key=args.segmented_view_key,
             )

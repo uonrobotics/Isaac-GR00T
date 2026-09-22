@@ -925,6 +925,8 @@ class DashboardVideoRecorder:
             ("SPEED", self._number_text(telemetry.get("speed"), 3)),
             ("ROBOT V / W", self._motion_text(telemetry)),
             ("ACTION STEP", self._action_step_text(telemetry)),
+            ("ACTION BBOX", str(telemetry.get("sign_conditioning_mode", "-")).upper()),
+            ("ABLATION", str(telemetry.get("sign_ablation_mode", "-")).upper()),
             ("CAM TO INPUT", self._latency_text(telemetry.get("camera_to_model_input_ms"))),
         ]
         for label, key in (

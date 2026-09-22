@@ -679,10 +679,10 @@ uv run python visualize_sign_grounding.py \
   
 # dataset에서 랜덤 frame 긁기
 uv run python visualize_sign_grounding.py \
-  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/checkpoint-100000/ \
-  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/processor \
+  --checkpoint /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260921--w1_5_1--signw0p05+bbox_detached/checkpoint-100000/ \
+  --processor /nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260921--w1_5_1--signw0p05+bbox_detached/processor \
   --dataset /nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding/ \
-  --output-dir ./visualization_sign_head_test_1_5_0p5+bbox_detached \
+  --output-dir ./visualization_sign_head_test_1_5_1+bbox_detached \
   --num-samples-per-episode 20 \
   --seed 1999 \
   --device cuda:0

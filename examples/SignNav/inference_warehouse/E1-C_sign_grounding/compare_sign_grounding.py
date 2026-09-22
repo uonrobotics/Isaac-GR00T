@@ -460,8 +460,8 @@ if __name__ == "__main__":
 
 """
 uv run python compare_sign_grounding.py \
-  ./visualization_sign_head_test_1_5_0p5 \
-  ./visualization_sign_head_test_1_5_0p5+bbox_detached \
-  --name-a 1_5_0p5 \
-  --name-b 1_5_0p5+bbox_detached
+  ./visualization_sign_head_test_1_5_1 \
+  ./visualization_sign_head_test_1_5_1+bbox_detached \
+  --name-a 1_5_1 \
+  --name-b 1_5_1+bbox_detached
 """
