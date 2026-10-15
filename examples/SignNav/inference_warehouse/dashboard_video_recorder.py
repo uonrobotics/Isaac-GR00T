@@ -929,6 +929,22 @@ class DashboardVideoRecorder:
             ("ABLATION", str(telemetry.get("sign_ablation_mode", "-")).upper()),
             ("CAM TO INPUT", self._latency_text(telemetry.get("camera_to_model_input_ms"))),
         ]
+        if telemetry.get("sign_training_conditioning_mode") is not None:
+            rows.insert(
+                -1,
+                (
+                    "TRAIN CONDITION",
+                    str(telemetry["sign_training_conditioning_mode"]).upper(),
+                ),
+            )
+        if telemetry.get("sign_action_residual_scale") is not None:
+            rows.insert(
+                -1,
+                (
+                    "STATE RESIDUAL",
+                    self._number_text(telemetry["sign_action_residual_scale"], 3),
+                ),
+            )
         for label, key in (
             ("ACTION INFER", "action_inference_ms"),
             ("GROUND INFER", "grounding_inference_ms"),
