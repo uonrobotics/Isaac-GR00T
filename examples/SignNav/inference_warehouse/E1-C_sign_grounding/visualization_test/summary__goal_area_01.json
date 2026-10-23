@@ -1,0 +1,68 @@
+{
+  "checkpoint": "/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/checkpoint-100000",
+  "processor": "/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260909--w1_5_0p5--signw0p05+bbox_detached/processor",
+  "mode": "image",
+  "num_samples": 1,
+  "pred_bbox_mean_cxcywh": [
+    0.5472221374511719,
+    0.39326852560043335,
+    0.06881255656480789,
+    0.08801652491092682
+  ],
+  "pred_bbox_std_cxcywh": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "source_goal_counts": {
+    "": 1
+  },
+  "samples": [
+    {
+      "file": "signnav_ego_20260921_151238_698__goal_area_01__sign_grounding.png",
+      "source": "/home/sujin/Pictures/signnav_ego_20260921_151238_698.jpg",
+      "source_goal": "",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5472221374511719,
+        0.39326852560043335,
+        0.06881255656480789,
+        0.08801652491092682
+      ],
+      "pred_bbox_xyxy": [
+        0.5128158330917358,
+        0.34926027059555054,
+        0.5816284418106079,
+        0.43727678060531616
+      ],
+      "pred_bbox_pixel_xyxy": [
+        328,
+        140,
+        372,
+        175
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9987550973892212,
+      "probabilities": [
+        0.0012448432389646769,
+        0.9987550973892212,
+        9.533152045548832e-12
+      ]
+    }
+  ],
+  "image": "/home/sujin/Pictures/signnav_ego_20260921_151238_698.jpg",
+  "area": 1
+}

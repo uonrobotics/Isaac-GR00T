@@ -1,0 +1,5199 @@
+{
+  "checkpoint": "/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260921--w1_5_1--signw0p05/checkpoint-100000",
+  "processor": "/nas/sujinkim/model/SignNav/gr00t_n1d7/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding/gr00t_n1d7-finetune+sim_v2_lerobot_sign_grounding--20260921--w1_5_1--signw0p05/processor",
+  "mode": "dataset",
+  "num_samples": 120,
+  "pred_bbox_mean_cxcywh": [
+    0.5207942724227905,
+    0.35713618993759155,
+    0.08971898257732391,
+    0.09916701167821884
+  ],
+  "pred_bbox_std_cxcywh": [
+    0.14664322137832642,
+    0.07050155848264694,
+    0.03783487156033516,
+    0.055872317403554916
+  ],
+  "source_goal_counts": {
+    "goal_01": 20,
+    "goal_02": 20,
+    "goal_03": 20,
+    "goal_04": 20,
+    "goal_05": 20,
+    "goal_06": 20
+  },
+  "samples": [
+    {
+      "file": "sample_000__goal_01__goal_area_01__episode_013__step_000899.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=899",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6361271142959595,
+        0.3904758393764496,
+        0.06450818479061127,
+        0.05738583952188492
+      ],
+      "pred_bbox_xyxy": [
+        0.6038730144500732,
+        0.36178290843963623,
+        0.6683812141418457,
+        0.41916877031326294
+      ],
+      "pred_bbox_pixel_xyxy": [
+        386,
+        145,
+        428,
+        168
+      ],
+      "pred_status": 0,
+      "found_probability": 0.014728613197803497,
+      "probabilities": [
+        0.9852713346481323,
+        0.014728613197803497,
+        1.2854358202862848e-11
+      ]
+    },
+    {
+      "file": "sample_001__goal_01__goal_area_01__episode_013__step_001121.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1121",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6522414088249207,
+        0.3937346339225769,
+        0.06450818479061127,
+        0.05672123283147812
+      ],
+      "pred_bbox_xyxy": [
+        0.6199873089790344,
+        0.36537402868270874,
+        0.6844955086708069,
+        0.42209523916244507
+      ],
+      "pred_bbox_pixel_xyxy": [
+        397,
+        146,
+        438,
+        169
+      ],
+      "pred_status": 0,
+      "found_probability": 0.007011794950813055,
+      "probabilities": [
+        0.9929881691932678,
+        0.007011794950813055,
+        2.7425811621739626e-11
+      ]
+    },
+    {
+      "file": "sample_002__goal_01__goal_area_01__episode_013__step_001008.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1008",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.7676898241043091,
+        0.4002804160118103,
+        0.060836829245090485,
+        0.05414556711912155
+      ],
+      "pred_bbox_xyxy": [
+        0.7372714281082153,
+        0.37320762872695923,
+        0.7981082201004028,
+        0.4273532032966614
+      ],
+      "pred_bbox_pixel_xyxy": [
+        472,
+        149,
+        511,
+        171
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0045384312979876995,
+      "probabilities": [
+        0.9954615235328674,
+        0.0045384312979876995,
+        2.7927094664592644e-11
+      ]
+    },
+    {
+      "file": "sample_003__goal_01__goal_area_01__episode_013__step_000645.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=645",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5102524757385254,
+        0.35398629307746887,
+        0.10888847708702087,
+        0.13222916424274445
+      ],
+      "pred_bbox_xyxy": [
+        0.45580822229385376,
+        0.28787171840667725,
+        0.564696729183197,
+        0.4201008677482605
+      ],
+      "pred_bbox_pixel_xyxy": [
+        292,
+        115,
+        361,
+        168
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999902248382568,
+      "probabilities": [
+        9.818327271204907e-06,
+        0.9999902248382568,
+        3.7009756153824624e-13
+      ]
+    },
+    {
+      "file": "sample_004__goal_01__goal_area_01__episode_013__step_001625.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1625",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5607337951660156,
+        0.33111974596977234,
+        0.07044915854930878,
+        0.07254979014396667
+      ],
+      "pred_bbox_xyxy": [
+        0.525509238243103,
+        0.2948448657989502,
+        0.5959583520889282,
+        0.3673946261405945
+      ],
+      "pred_bbox_pixel_xyxy": [
+        336,
+        118,
+        381,
+        147
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9851576089859009,
+      "probabilities": [
+        0.01484241709113121,
+        0.9851576089859009,
+        1.663285481567911e-11
+      ]
+    },
+    {
+      "file": "sample_005__goal_01__goal_area_01__episode_013__step_001133.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1133",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6976089477539062,
+        0.38075897097587585,
+        0.0712820366024971,
+        0.060129307210445404
+      ],
+      "pred_bbox_xyxy": [
+        0.661967933177948,
+        0.35069432854652405,
+        0.7332499623298645,
+        0.41082361340522766
+      ],
+      "pred_bbox_pixel_xyxy": [
+        424,
+        140,
+        469,
+        164
+      ],
+      "pred_status": 0,
+      "found_probability": 0.008711383678019047,
+      "probabilities": [
+        0.9912885427474976,
+        0.008711383678019047,
+        5.3912191551319655e-12
+      ]
+    },
+    {
+      "file": "sample_006__goal_01__goal_area_01__episode_013__step_001855.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1855",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5377697348594666,
+        0.14706450700759888,
+        0.12658564746379852,
+        0.19657190144062042
+      ],
+      "pred_bbox_xyxy": [
+        0.4744769036769867,
+        0.048778556287288666,
+        0.601062536239624,
+        0.2453504502773285
+      ],
+      "pred_bbox_pixel_xyxy": [
+        304,
+        20,
+        385,
+        98
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9974491000175476,
+      "probabilities": [
+        0.00255091255530715,
+        0.9974491000175476,
+        1.00347302082332e-12
+      ]
+    },
+    {
+      "file": "sample_007__goal_01__goal_area_01__episode_013__step_002298.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=2298",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.2628418207168579,
+        0.2950267493724823,
+        0.1286807656288147,
+        0.16306130588054657
+      ],
+      "pred_bbox_xyxy": [
+        0.19850143790245056,
+        0.21349608898162842,
+        0.32718220353126526,
+        0.3765574097633362
+      ],
+      "pred_bbox_pixel_xyxy": [
+        127,
+        85,
+        209,
+        151
+      ],
+      "pred_status": 0,
+      "found_probability": 3.4663264614209766e-07,
+      "probabilities": [
+        0.9999996423721313,
+        3.4663264614209766e-07,
+        2.4169975035618317e-15
+      ]
+    },
+    {
+      "file": "sample_008__goal_01__goal_area_01__episode_013__step_001949.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1949",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5231767296791077,
+        0.3250918686389923,
+        0.08158274739980698,
+        0.10464220494031906
+      ],
+      "pred_bbox_xyxy": [
+        0.4823853671550751,
+        0.2727707624435425,
+        0.5639681220054626,
+        0.37741297483444214
+      ],
+      "pred_bbox_pixel_xyxy": [
+        309,
+        109,
+        361,
+        151
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9898303151130676,
+      "probabilities": [
+        0.010169656947255135,
+        0.9898303151130676,
+        8.504786874752313e-10
+      ]
+    },
+    {
+      "file": "sample_009__goal_01__goal_area_01__episode_013__step_001563.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1563",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4651445150375366,
+        0.35756751894950867,
+        0.06881255656480789,
+        0.07170215249061584
+      ],
+      "pred_bbox_xyxy": [
+        0.430738240480423,
+        0.32171642780303955,
+        0.49955078959465027,
+        0.3934186100959778
+      ],
+      "pred_bbox_pixel_xyxy": [
+        276,
+        129,
+        320,
+        157
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9043130874633789,
+      "probabilities": [
+        0.09568694233894348,
+        0.9043130874633789,
+        7.906618415542965e-11
+      ]
+    },
+    {
+      "file": "sample_010__goal_01__goal_area_01__episode_013__step_000851.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=851",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.49820709228515625,
+        0.3839877247810364,
+        0.06682075560092926,
+        0.0637558326125145
+      ],
+      "pred_bbox_xyxy": [
+        0.4647967219352722,
+        0.35210981965065,
+        0.5316174626350403,
+        0.41586562991142273
+      ],
+      "pred_bbox_pixel_xyxy": [
+        297,
+        141,
+        340,
+        166
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0004955359036102891,
+      "probabilities": [
+        0.9995044469833374,
+        0.0004955359036102891,
+        3.115019906515387e-13
+      ]
+    },
+    {
+      "file": "sample_011__goal_01__goal_area_01__episode_013__step_000892.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=892",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6178585886955261,
+        0.3900110721588135,
+        0.06604058295488358,
+        0.060129307210445404
+      ],
+      "pred_bbox_xyxy": [
+        0.5848382711410522,
+        0.35994642972946167,
+        0.65087890625,
+        0.4200757145881653
+      ],
+      "pred_bbox_pixel_xyxy": [
+        374,
+        144,
+        417,
+        168
+      ],
+      "pred_status": 0,
+      "found_probability": 0.02517884038388729,
+      "probabilities": [
+        0.974821150302887,
+        0.02517884038388729,
+        1.4187977182000822e-11
+      ]
+    },
+    {
+      "file": "sample_012__goal_01__goal_area_01__episode_013__step_001289.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1289",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45060110092163086,
+        0.35220175981521606,
+        0.0811065286397934,
+        0.07212473452091217
+      ],
+      "pred_bbox_xyxy": [
+        0.41004782915115356,
+        0.3161394000053406,
+        0.49115437269210815,
+        0.38826411962509155
+      ],
+      "pred_bbox_pixel_xyxy": [
+        262,
+        126,
+        314,
+        155
+      ],
+      "pred_status": 0,
+      "found_probability": 0.07807816565036774,
+      "probabilities": [
+        0.9219217896461487,
+        0.07807816565036774,
+        1.4062001563175386e-11
+      ]
+    },
+    {
+      "file": "sample_013__goal_01__goal_area_01__episode_013__step_000218.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=218",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6901415586471558,
+        0.37570643424987793,
+        0.12938480079174042,
+        0.12520311772823334
+      ],
+      "pred_bbox_xyxy": [
+        0.6254491806030273,
+        0.31310486793518066,
+        0.7548339366912842,
+        0.4383080005645752
+      ],
+      "pred_bbox_pixel_xyxy": [
+        400,
+        125,
+        483,
+        175
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9973269701004028,
+      "probabilities": [
+        0.0026730059180408716,
+        0.9973269701004028,
+        1.0234449399071366e-10
+      ]
+    },
+    {
+      "file": "sample_014__goal_01__goal_area_01__episode_013__step_001104.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1104",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6575384140014648,
+        0.3970029056072235,
+        0.0637558326125145,
+        0.0554170086979866
+      ],
+      "pred_bbox_xyxy": [
+        0.6256604790687561,
+        0.3692944049835205,
+        0.6894163489341736,
+        0.4247114062309265
+      ],
+      "pred_bbox_pixel_xyxy": [
+        400,
+        148,
+        441,
+        170
+      ],
+      "pred_status": 0,
+      "found_probability": 0.003376612439751625,
+      "probabilities": [
+        0.9966233968734741,
+        0.003376612439751625,
+        4.423864920222176e-12
+      ]
+    },
+    {
+      "file": "sample_015__goal_01__goal_area_01__episode_013__step_001534.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1534",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.532181978225708,
+        0.35398629307746887,
+        0.08016197383403778,
+        0.08254312723875046
+      ],
+      "pred_bbox_xyxy": [
+        0.4921009838581085,
+        0.31271472573280334,
+        0.5722629427909851,
+        0.3952578604221344
+      ],
+      "pred_bbox_pixel_xyxy": [
+        315,
+        125,
+        366,
+        158
+      ],
+      "pred_status": 1,
+      "found_probability": 0.914290726184845,
+      "probabilities": [
+        0.08570928126573563,
+        0.914290726184845,
+        1.4114205360016285e-09
+      ]
+    },
+    {
+      "file": "sample_016__goal_01__goal_area_01__episode_013__step_000540.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=540",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.14318770170211792,
+        0.3638729155063629,
+        0.11978716403245926,
+        0.13294726610183716
+      ],
+      "pred_bbox_xyxy": [
+        0.08329412341117859,
+        0.29739928245544434,
+        0.20308127999305725,
+        0.4303465485572815
+      ],
+      "pred_bbox_pixel_xyxy": [
+        53,
+        119,
+        130,
+        172
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9981030225753784,
+      "probabilities": [
+        0.0018969199154525995,
+        0.9981030225753784,
+        3.027651393483488e-11
+      ]
+    },
+    {
+      "file": "sample_017__goal_01__goal_area_01__episode_013__step_001367.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1367",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5650587677955627,
+        0.3775406777858734,
+        0.060836829245090485,
+        0.0554170086979866
+      ],
+      "pred_bbox_xyxy": [
+        0.534640371799469,
+        0.3498321771621704,
+        0.5954771637916565,
+        0.4052491784095764
+      ],
+      "pred_bbox_pixel_xyxy": [
+        342,
+        140,
+        381,
+        162
+      ],
+      "pred_status": 0,
+      "found_probability": 0.05460060387849808,
+      "probabilities": [
+        0.9453993439674377,
+        0.05460060387849808,
+        4.075936810288283e-11
+      ]
+    },
+    {
+      "file": "sample_018__goal_01__goal_area_01__episode_013__step_001077.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1077",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6934729218482971,
+        0.37799978256225586,
+        0.06962601840496063,
+        0.060129307210445404
+      ],
+      "pred_bbox_xyxy": [
+        0.6586599349975586,
+        0.34793514013290405,
+        0.7282859086990356,
+        0.40806442499160767
+      ],
+      "pred_bbox_pixel_xyxy": [
+        422,
+        139,
+        466,
+        163
+      ],
+      "pred_status": 0,
+      "found_probability": 0.00985985528677702,
+      "probabilities": [
+        0.9901401400566101,
+        0.00985985528677702,
+        2.8823683891066043e-12
+      ]
+    },
+    {
+      "file": "sample_019__goal_01__goal_area_01__episode_013__step_001765.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=13:step=1765",
+      "source_goal": "goal_01",
+      "prompt": "Find the sign panel containing Area 1 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6697448492050171,
+        0.25534364581108093,
+        0.10524021834135056,
+        0.11978716403245926
+      ],
+      "pred_bbox_xyxy": [
+        0.6171247363090515,
+        0.1954500675201416,
+        0.7223649621009827,
+        0.31523722410202026
+      ],
+      "pred_bbox_pixel_xyxy": [
+        395,
+        78,
+        462,
+        126
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9994115829467773,
+      "probabilities": [
+        0.0005884087877348065,
+        0.9994115829467773,
+        1.5243946729914803e-11
+      ]
+    },
+    {
+      "file": "sample_020__goal_02__goal_area_02__episode_020__step_000209.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=209",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6352224349975586,
+        0.43062615394592285,
+        0.05229850113391876,
+        0.0554170086979866
+      ],
+      "pred_bbox_xyxy": [
+        0.6090731620788574,
+        0.40291765332221985,
+        0.6613717079162598,
+        0.45833465456962585
+      ],
+      "pred_bbox_pixel_xyxy": [
+        390,
+        161,
+        423,
+        183
+      ],
+      "pred_status": 0,
+      "found_probability": 0.4457707703113556,
+      "probabilities": [
+        0.554229199886322,
+        0.4457707703113556,
+        1.3048011560101713e-08
+      ]
+    },
+    {
+      "file": "sample_021__goal_02__goal_area_02__episode_020__step_002033.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=2033",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.36296918988227844,
+        0.3835258483886719,
+        0.11455481499433517,
+        0.09881897270679474
+      ],
+      "pred_bbox_xyxy": [
+        0.30569177865982056,
+        0.3341163694858551,
+        0.42024660110473633,
+        0.43293532729148865
+      ],
+      "pred_bbox_pixel_xyxy": [
+        196,
+        134,
+        269,
+        173
+      ],
+      "pred_status": 0,
+      "found_probability": 0.05921024829149246,
+      "probabilities": [
+        0.9407896995544434,
+        0.05921024829149246,
+        8.163967279983808e-09
+      ]
+    },
+    {
+      "file": "sample_022__goal_02__goal_area_02__episode_020__step_001613.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=1613",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6169357895851135,
+        0.33895185589790344,
+        0.07784627377986908,
+        0.07876475900411606
+      ],
+      "pred_bbox_xyxy": [
+        0.5780126452445984,
+        0.2995694875717163,
+        0.6558589339256287,
+        0.3783342242240906
+      ],
+      "pred_bbox_pixel_xyxy": [
+        370,
+        120,
+        420,
+        151
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9896718263626099,
+      "probabilities": [
+        0.010328153148293495,
+        0.9896718263626099,
+        7.988228412081355e-10
+      ]
+    },
+    {
+      "file": "sample_023__goal_02__goal_area_02__episode_020__step_000591.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=591",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4966278672218323,
+        0.333720326423645,
+        0.09768838435411453,
+        0.15979169309139252
+      ],
+      "pred_bbox_xyxy": [
+        0.4477836787700653,
+        0.25382447242736816,
+        0.5454720854759216,
+        0.4136161804199219
+      ],
+      "pred_bbox_pixel_xyxy": [
+        287,
+        102,
+        349,
+        165
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999227523803711,
+      "probabilities": [
+        7.722191367065534e-05,
+        0.9999227523803711,
+        2.939850446415093e-11
+      ]
+    },
+    {
+      "file": "sample_024__goal_02__goal_area_02__episode_020__step_000001.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=1",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5525397062301636,
+        0.43062615394592285,
+        0.07604019343852997,
+        0.06881255656480789
+      ],
+      "pred_bbox_xyxy": [
+        0.5145196318626404,
+        0.3962198793888092,
+        0.5905597805976868,
+        0.4650324285030365
+      ],
+      "pred_bbox_pixel_xyxy": [
+        329,
+        158,
+        378,
+        186
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9681411385536194,
+      "probabilities": [
+        0.03185885772109032,
+        0.9681411385536194,
+        1.0849278142543994e-09
+      ]
+    },
+    {
+      "file": "sample_025__goal_02__goal_area_02__episode_020__step_000562.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=562",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5326682329177856,
+        0.351311057806015,
+        0.09008826315402985,
+        0.1387924998998642
+      ],
+      "pred_bbox_xyxy": [
+        0.4876241087913513,
+        0.2819148004055023,
+        0.57771235704422,
+        0.4207073152065277
+      ],
+      "pred_bbox_pixel_xyxy": [
+        312,
+        113,
+        370,
+        168
+      ],
+      "pred_status": 1,
+      "found_probability": 0.999937891960144,
+      "probabilities": [
+        6.205048703122884e-05,
+        0.999937891960144,
+        6.357968838910377e-12
+      ]
+    },
+    {
+      "file": "sample_026__goal_02__goal_area_02__episode_020__step_002597.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=2597",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.272024542093277,
+        0.38029852509498596,
+        0.08956620842218399,
+        0.1101275309920311
+      ],
+      "pred_bbox_xyxy": [
+        0.22724144160747528,
+        0.3252347707748413,
+        0.31680765748023987,
+        0.4353622794151306
+      ],
+      "pred_bbox_pixel_xyxy": [
+        145,
+        130,
+        203,
+        174
+      ],
+      "pred_status": 0,
+      "found_probability": 0.00011235327110625803,
+      "probabilities": [
+        0.9998875856399536,
+        0.00011235327110625803,
+        7.359513389329497e-13
+      ]
+    },
+    {
+      "file": "sample_027__goal_02__goal_area_02__episode_020__step_001133.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=1133",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6584175229072571,
+        0.39326852560043335,
+        0.06840942800045013,
+        0.061553165316581726
+      ],
+      "pred_bbox_xyxy": [
+        0.6242128014564514,
+        0.3624919354915619,
+        0.6926222443580627,
+        0.4240451157093048
+      ],
+      "pred_bbox_pixel_xyxy": [
+        399,
+        145,
+        443,
+        170
+      ],
+      "pred_status": 0,
+      "found_probability": 0.004198795184493065,
+      "probabilities": [
+        0.9958011507987976,
+        0.004198795184493065,
+        9.450837334945561e-11
+      ]
+    },
+    {
+      "file": "sample_028__goal_02__goal_area_02__episode_020__step_000268.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=268",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6460136771202087,
+        0.43206343054771423,
+        0.05477723479270935,
+        0.05874040722846985
+      ],
+      "pred_bbox_xyxy": [
+        0.6186250448226929,
+        0.4026932120323181,
+        0.6734023094177246,
+        0.46143364906311035
+      ],
+      "pred_bbox_pixel_xyxy": [
+        396,
+        161,
+        431,
+        185
+      ],
+      "pred_status": 1,
+      "found_probability": 0.7405498027801514,
+      "probabilities": [
+        0.25945019721984863,
+        0.7405498027801514,
+        1.9794486050273008e-08
+      ]
+    },
+    {
+      "file": "sample_029__goal_02__goal_area_02__episode_020__step_000478.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=478",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.541166365146637,
+        0.39840641617774963,
+        0.06921807676553726,
+        0.09008826315402985
+      ],
+      "pred_bbox_xyxy": [
+        0.5065573453903198,
+        0.3533622920513153,
+        0.5757753849029541,
+        0.44345054030418396
+      ],
+      "pred_bbox_pixel_xyxy": [
+        324,
+        141,
+        368,
+        177
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9962345957756042,
+      "probabilities": [
+        0.0037654137704521418,
+        0.9962345957756042,
+        8.608831009171425e-11
+      ]
+    },
+    {
+      "file": "sample_030__goal_02__goal_area_02__episode_020__step_000669.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=669",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.1550784707069397,
+        0.3747906982898712,
+        0.11584565788507462,
+        0.12247225642204285
+      ],
+      "pred_bbox_xyxy": [
+        0.09715564548969269,
+        0.313554584980011,
+        0.2130012959241867,
+        0.43602681159973145
+      ],
+      "pred_bbox_pixel_xyxy": [
+        62,
+        125,
+        136,
+        174
+      ],
+      "pred_status": 0,
+      "found_probability": 0.005641908850520849,
+      "probabilities": [
+        0.9943581223487854,
+        0.005641908850520849,
+        1.14967924069731e-09
+      ]
+    },
+    {
+      "file": "sample_031__goal_02__goal_area_02__episode_020__step_001737.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=1737",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6774740219116211,
+        0.24944725632667542,
+        0.10286533087491989,
+        0.11584565788507462
+      ],
+      "pred_bbox_xyxy": [
+        0.6260413527488708,
+        0.1915244311094284,
+        0.7289066910743713,
+        0.3073700964450836
+      ],
+      "pred_bbox_pixel_xyxy": [
+        401,
+        77,
+        467,
+        123
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9989515542984009,
+      "probabilities": [
+        0.0010484692174941301,
+        0.9989515542984009,
+        1.1258653731527346e-10
+      ]
+    },
+    {
+      "file": "sample_032__goal_02__goal_area_02__episode_020__step_001845.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=1845",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4593186378479004,
+        0.13117322325706482,
+        0.14788874983787537,
+        0.22288604080677032
+      ],
+      "pred_bbox_xyxy": [
+        0.3853742480278015,
+        0.019730202853679657,
+        0.5332630276679993,
+        0.24261623620986938
+      ],
+      "pred_bbox_pixel_xyxy": [
+        247,
+        8,
+        341,
+        97
+      ],
+      "pred_status": 1,
+      "found_probability": 0.986151397228241,
+      "probabilities": [
+        0.01384861022233963,
+        0.986151397228241,
+        1.7760744264183614e-10
+      ]
+    },
+    {
+      "file": "sample_033__goal_02__goal_area_02__episode_020__step_000548.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=548",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5336405038833618,
+        0.35667070746421814,
+        0.09114062786102295,
+        0.13511839509010315
+      ],
+      "pred_bbox_xyxy": [
+        0.48807018995285034,
+        0.28911149501800537,
+        0.5792108178138733,
+        0.4242299199104309
+      ],
+      "pred_bbox_pixel_xyxy": [
+        312,
+        116,
+        371,
+        170
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999517202377319,
+      "probabilities": [
+        4.832564081880264e-05,
+        0.9999517202377319,
+        2.734566262665994e-12
+      ]
+    },
+    {
+      "file": "sample_034__goal_02__goal_area_02__episode_020__step_002671.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=2671",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.15102779865264893,
+        0.4101654887199402,
+        0.10053607821464539,
+        0.09114062786102295
+      ],
+      "pred_bbox_xyxy": [
+        0.10075975954532623,
+        0.3645951747894287,
+        0.20129583775997162,
+        0.45573580265045166
+      ],
+      "pred_bbox_pixel_xyxy": [
+        64,
+        146,
+        129,
+        182
+      ],
+      "pred_status": 0,
+      "found_probability": 4.895668870297243e-10,
+      "probabilities": [
+        1.0,
+        4.895668870297243e-10,
+        2.200701923008052e-15
+      ]
+    },
+    {
+      "file": "sample_035__goal_02__goal_area_02__episode_020__step_001158.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=1158",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.47840696573257446,
+        0.37937837839126587,
+        0.06881255656480789,
+        0.0637558326125145
+      ],
+      "pred_bbox_xyxy": [
+        0.4440006911754608,
+        0.3475004732608795,
+        0.5128132700920105,
+        0.4112562835216522
+      ],
+      "pred_bbox_pixel_xyxy": [
+        284,
+        139,
+        328,
+        165
+      ],
+      "pred_status": 0,
+      "found_probability": 0.004007288720458746,
+      "probabilities": [
+        0.9959927201271057,
+        0.004007288720458746,
+        3.7600061952858255e-11
+      ]
+    },
+    {
+      "file": "sample_036__goal_02__goal_area_02__episode_020__step_000190.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=190",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5549529194831848,
+        0.4344612956047058,
+        0.05805886536836624,
+        0.05874040722846985
+      ],
+      "pred_bbox_xyxy": [
+        0.525923490524292,
+        0.4050911068916321,
+        0.5839823484420776,
+        0.46383148431777954
+      ],
+      "pred_bbox_pixel_xyxy": [
+        337,
+        162,
+        374,
+        186
+      ],
+      "pred_status": 0,
+      "found_probability": 0.32209935784339905,
+      "probabilities": [
+        0.6779006123542786,
+        0.32209935784339905,
+        5.825504523215841e-09
+      ]
+    },
+    {
+      "file": "sample_037__goal_02__goal_area_02__episode_020__step_002657.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=2657",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.3928025960922241,
+        0.308190256357193,
+        0.11714798212051392,
+        0.15139886736869812
+      ],
+      "pred_bbox_xyxy": [
+        0.33422860503196716,
+        0.23249082267284393,
+        0.4513765871524811,
+        0.38388967514038086
+      ],
+      "pred_bbox_pixel_xyxy": [
+        214,
+        93,
+        289,
+        154
+      ],
+      "pred_status": 0,
+      "found_probability": 4.888302669314726e-07,
+      "probabilities": [
+        0.9999995231628418,
+        4.888302669314726e-07,
+        4.1114504921273276e-15
+      ]
+    },
+    {
+      "file": "sample_038__goal_02__goal_area_02__episode_020__step_000006.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=6",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4849288761615753,
+        0.42202815413475037,
+        0.07969363033771515,
+        0.06921807676553726
+      ],
+      "pred_bbox_xyxy": [
+        0.44508206844329834,
+        0.38741910457611084,
+        0.5247756838798523,
+        0.4566372036933899
+      ],
+      "pred_bbox_pixel_xyxy": [
+        285,
+        155,
+        336,
+        183
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9912885427474976,
+      "probabilities": [
+        0.008711383678019047,
+        0.9912885427474976,
+        6.843855482330241e-10
+      ]
+    },
+    {
+      "file": "sample_039__goal_02__goal_area_02__episode_020__step_002140.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=20:step=2140",
+      "source_goal": "goal_02",
+      "prompt": "Find the sign panel containing Area 2 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4515683352947235,
+        0.3123700022697449,
+        0.12589295208454132,
+        0.12383197247982025
+      ],
+      "pred_bbox_xyxy": [
+        0.38862186670303345,
+        0.25045400857925415,
+        0.5145148038864136,
+        0.3742859959602356
+      ],
+      "pred_bbox_pixel_xyxy": [
+        249,
+        100,
+        329,
+        150
+      ],
+      "pred_status": 0,
+      "found_probability": 0.01384861022233963,
+      "probabilities": [
+        0.986151397228241,
+        0.01384861022233963,
+        4.800381425695832e-09
+      ]
+    },
+    {
+      "file": "sample_040__goal_03__goal_area_03__episode_052__step_002237.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=2237",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.2958398759365082,
+        0.4163219630718231,
+        0.07559506595134735,
+        0.07086437940597534
+      ],
+      "pred_bbox_xyxy": [
+        0.2580423355102539,
+        0.38088977336883545,
+        0.33363741636276245,
+        0.4517541527748108
+      ],
+      "pred_bbox_pixel_xyxy": [
+        165,
+        152,
+        214,
+        181
+      ],
+      "pred_status": 0,
+      "found_probability": 4.133539550821297e-05,
+      "probabilities": [
+        0.9999586343765259,
+        4.133539550821297e-05,
+        3.0033542926938273e-12
+      ]
+    },
+    {
+      "file": "sample_041__goal_03__goal_area_03__episode_052__step_000435.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=435",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.14223189651966095,
+        0.38954657316207886,
+        0.09996087849140167,
+        0.10169501602649689
+      ],
+      "pred_bbox_xyxy": [
+        0.09225145727396011,
+        0.338699072599411,
+        0.19221234321594238,
+        0.4403940737247467
+      ],
+      "pred_bbox_pixel_xyxy": [
+        59,
+        135,
+        123,
+        176
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9904406070709229,
+      "probabilities": [
+        0.00955939944833517,
+        0.9904406070709229,
+        1.4111013746376244e-10
+      ]
+    },
+    {
+      "file": "sample_042__goal_03__goal_area_03__episode_052__step_001321.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1321",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5212274789810181,
+        0.3849121630191803,
+        0.06604058295488358,
+        0.05672123283147812
+      ],
+      "pred_bbox_xyxy": [
+        0.4882071912288666,
+        0.35655155777931213,
+        0.5542477965354919,
+        0.41327276825904846
+      ],
+      "pred_bbox_pixel_xyxy": [
+        312,
+        143,
+        355,
+        165
+      ],
+      "pred_status": 0,
+      "found_probability": 0.4126189053058624,
+      "probabilities": [
+        0.58738112449646,
+        0.4126189053058624,
+        2.629495510220181e-10
+      ]
+    },
+    {
+      "file": "sample_043__goal_03__goal_area_03__episode_052__step_002375.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=2375",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45956122875213623,
+        0.3729618787765503,
+        0.08699705451726913,
+        0.08158274739980698
+      ],
+      "pred_bbox_xyxy": [
+        0.41606271266937256,
+        0.3321705162525177,
+        0.5030597448348999,
+        0.4137532413005829
+      ],
+      "pred_bbox_pixel_xyxy": [
+        266,
+        133,
+        322,
+        166
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0005033356137573719,
+      "probabilities": [
+        0.9994966983795166,
+        0.0005033356137573719,
+        1.0055330049510425e-12
+      ]
+    },
+    {
+      "file": "sample_044__goal_03__goal_area_03__episode_052__step_001550.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1550",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6566582322120667,
+        0.35488009452819824,
+        0.06682075560092926,
+        0.06526974588632584
+      ],
+      "pred_bbox_xyxy": [
+        0.6232478618621826,
+        0.32224521040916443,
+        0.6900686025619507,
+        0.38751497864723206
+      ],
+      "pred_bbox_pixel_xyxy": [
+        399,
+        129,
+        442,
+        155
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9750121831893921,
+      "probabilities": [
+        0.02498779445886612,
+        0.9750121831893921,
+        6.930577639563396e-11
+      ]
+    },
+    {
+      "file": "sample_045__goal_03__goal_area_03__episode_052__step_002137.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=2137",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.8386797308921814,
+        0.12852513790130615,
+        0.20407339930534363,
+        0.24800364673137665
+      ],
+      "pred_bbox_xyxy": [
+        0.7366430163383484,
+        0.004523314535617828,
+        0.9407164454460144,
+        0.2525269687175751
+      ],
+      "pred_bbox_pixel_xyxy": [
+        471,
+        2,
+        602,
+        101
+      ],
+      "pred_status": 1,
+      "found_probability": 0.6984323263168335,
+      "probabilities": [
+        0.3015677034854889,
+        0.6984323263168335,
+        8.331628720270601e-10
+      ]
+    },
+    {
+      "file": "sample_046__goal_03__goal_area_03__episode_052__step_001120.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1120",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6766199469566345,
+        0.39793843030929565,
+        0.06840942800045013,
+        0.061553165316581726
+      ],
+      "pred_bbox_xyxy": [
+        0.6424152255058289,
+        0.3671618402004242,
+        0.7108246684074402,
+        0.4287150204181671
+      ],
+      "pred_bbox_pixel_xyxy": [
+        411,
+        147,
+        455,
+        171
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0003199982747901231,
+      "probabilities": [
+        0.9996800422668457,
+        0.0003199982747901231,
+        1.1691079528086679e-11
+      ]
+    },
+    {
+      "file": "sample_047__goal_03__goal_area_03__episode_052__step_000558.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=558",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.446977436542511,
+        0.3830641508102417,
+        0.09436420351266861,
+        0.10286533087491989
+      ],
+      "pred_bbox_xyxy": [
+        0.3997953236103058,
+        0.33163148164749146,
+        0.4941595494747162,
+        0.43449681997299194
+      ],
+      "pred_bbox_pixel_xyxy": [
+        256,
+        133,
+        316,
+        174
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9998644590377808,
+      "probabilities": [
+        0.00013552079326473176,
+        0.9998644590377808,
+        2.7932915854476936e-13
+      ]
+    },
+    {
+      "file": "sample_048__goal_03__goal_area_03__episode_052__step_001574.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1574",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5926666259765625,
+        0.3486451208591461,
+        0.06526974588632584,
+        0.06881255656480789
+      ],
+      "pred_bbox_xyxy": [
+        0.5600317716598511,
+        0.31423884630203247,
+        0.6253014802932739,
+        0.38305139541625977
+      ],
+      "pred_bbox_pixel_xyxy": [
+        358,
+        126,
+        400,
+        153
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9869794845581055,
+      "probabilities": [
+        0.013020489364862442,
+        0.9869794845581055,
+        2.8125175799420532e-11
+      ]
+    },
+    {
+      "file": "sample_049__goal_03__goal_area_03__episode_052__step_000112.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=112",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5992506742477417,
+        0.4078049957752228,
+        0.07784627377986908,
+        0.08449580520391464
+      ],
+      "pred_bbox_xyxy": [
+        0.5603275299072266,
+        0.36555710434913635,
+        0.6381738185882568,
+        0.4500528872013092
+      ],
+      "pred_bbox_pixel_xyxy": [
+        359,
+        146,
+        408,
+        180
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9990600943565369,
+      "probabilities": [
+        0.0009399439441040158,
+        0.9990600943565369,
+        1.8276583024778859e-10
+      ]
+    },
+    {
+      "file": "sample_050__goal_03__goal_area_03__episode_052__step_000210.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=210",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.7264255881309509,
+        0.36206647753715515,
+        0.14103002846240997,
+        0.11846182495355606
+      ],
+      "pred_bbox_xyxy": [
+        0.6559105515480042,
+        0.3028355538845062,
+        0.7969406247138977,
+        0.4212974011898041
+      ],
+      "pred_bbox_pixel_xyxy": [
+        420,
+        121,
+        510,
+        169
+      ],
+      "pred_status": 1,
+      "found_probability": 0.7472472190856934,
+      "probabilities": [
+        0.25275275111198425,
+        0.7472472190856934,
+        1.3253350417130605e-08
+      ]
+    },
+    {
+      "file": "sample_051__goal_03__goal_area_03__episode_052__step_001704.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1704",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6766199469566345,
+        0.2806163728237152,
+        0.09436420351266861,
+        0.10345477610826492
+      ],
+      "pred_bbox_xyxy": [
+        0.6294378638267517,
+        0.22888898849487305,
+        0.7238020300865173,
+        0.3323437571525574
+      ],
+      "pred_bbox_pixel_xyxy": [
+        403,
+        92,
+        463,
+        133
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999203681945801,
+      "probabilities": [
+        7.967301644384861e-05,
+        0.9999203681945801,
+        1.658546347135803e-12
+      ]
+    },
+    {
+      "file": "sample_052__goal_03__goal_area_03__episode_052__step_001518.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1518",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5841525197029114,
+        0.37937837839126587,
+        0.06526974588632584,
+        0.060836829245090485
+      ],
+      "pred_bbox_xyxy": [
+        0.5515176653862,
+        0.34895995259284973,
+        0.6167873740196228,
+        0.409796804189682
+      ],
+      "pred_bbox_pixel_xyxy": [
+        353,
+        140,
+        395,
+        164
+      ],
+      "pred_status": 1,
+      "found_probability": 0.8914335370063782,
+      "probabilities": [
+        0.10856641829013824,
+        0.8914335370063782,
+        1.4706216244775305e-09
+      ]
+    },
+    {
+      "file": "sample_053__goal_03__goal_area_03__episode_052__step_001877.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1877",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.3459886312484741,
+        0.16132023930549622,
+        0.1949949413537979,
+        0.22194594144821167
+      ],
+      "pred_bbox_xyxy": [
+        0.24849116802215576,
+        0.05034726858139038,
+        0.4434860944747925,
+        0.27229321002960205
+      ],
+      "pred_bbox_pixel_xyxy": [
+        159,
+        20,
+        284,
+        109
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9929881691932678,
+      "probabilities": [
+        0.007011794950813055,
+        0.9929881691932678,
+        2.0908368092431573e-10
+      ]
+    },
+    {
+      "file": "sample_054__goal_03__goal_area_03__episode_052__step_001705.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1705",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6671476364135742,
+        0.29098087549209595,
+        0.09491121768951416,
+        0.10169501602649689
+      ],
+      "pred_bbox_xyxy": [
+        0.6196920275688171,
+        0.2401333749294281,
+        0.7146032452583313,
+        0.3418283760547638
+      ],
+      "pred_bbox_pixel_xyxy": [
+        397,
+        96,
+        457,
+        137
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9998644590377808,
+      "probabilities": [
+        0.00013552079326473176,
+        0.9998644590377808,
+        2.266837325487492e-12
+      ]
+    },
+    {
+      "file": "sample_055__goal_03__goal_area_03__episode_052__step_002301.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=2301",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4392662048339844,
+        0.3665897250175476,
+        0.1076609194278717,
+        0.1286807656288147
+      ],
+      "pred_bbox_xyxy": [
+        0.3854357600212097,
+        0.30224934220314026,
+        0.49309664964675903,
+        0.43093010783195496
+      ],
+      "pred_bbox_pixel_xyxy": [
+        247,
+        121,
+        316,
+        172
+      ],
+      "pred_status": 0,
+      "found_probability": 0.00011235327110625803,
+      "probabilities": [
+        0.9998875856399536,
+        0.00011235327110625803,
+        5.731594669364237e-13
+      ]
+    },
+    {
+      "file": "sample_056__goal_03__goal_area_03__episode_052__step_001478.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1478",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4590761363506317,
+        0.37022536993026733,
+        0.06450818479061127,
+        0.06301259249448776
+      ],
+      "pred_bbox_xyxy": [
+        0.4268220365047455,
+        0.33871906995773315,
+        0.49133023619651794,
+        0.4017316699028015
+      ],
+      "pred_bbox_pixel_xyxy": [
+        273,
+        135,
+        314,
+        161
+      ],
+      "pred_status": 1,
+      "found_probability": 0.7924642562866211,
+      "probabilities": [
+        0.2075357735157013,
+        0.7924642562866211,
+        5.801327751520091e-10
+      ]
+    },
+    {
+      "file": "sample_057__goal_03__goal_area_03__episode_052__step_001983.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1983",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6749081611633301,
+        0.3015677034854889,
+        0.10111412405967712,
+        0.1343919038772583
+      ],
+      "pred_bbox_xyxy": [
+        0.6243510842323303,
+        0.23437175154685974,
+        0.7254652380943298,
+        0.36876365542411804
+      ],
+      "pred_bbox_pixel_xyxy": [
+        400,
+        94,
+        464,
+        148
+      ],
+      "pred_status": 1,
+      "found_probability": 0.999931812286377,
+      "probabilities": [
+        6.814871449023485e-05,
+        0.999931812286377,
+        6.913928522582491e-13
+      ]
+    },
+    {
+      "file": "sample_058__goal_03__goal_area_03__episode_052__step_001815.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1815",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5486735105514526,
+        0.18242552876472473,
+        0.12520311772823334,
+        0.17182503640651703
+      ],
+      "pred_bbox_xyxy": [
+        0.48607194423675537,
+        0.09651301056146622,
+        0.6112750768661499,
+        0.26833805441856384
+      ],
+      "pred_bbox_pixel_xyxy": [
+        311,
+        39,
+        391,
+        107
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9997584223747253,
+      "probabilities": [
+        0.00024156630388461053,
+        0.9997584223747253,
+        2.1292705012360136e-12
+      ]
+    },
+    {
+      "file": "sample_059__goal_03__goal_area_03__episode_052__step_001119.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=52:step=1119",
+      "source_goal": "goal_03",
+      "prompt": "Find the sign panel containing Area 3 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6592954993247986,
+        0.39606815576553345,
+        0.06526974588632584,
+        0.05874040722846985
+      ],
+      "pred_bbox_xyxy": [
+        0.6266606450080872,
+        0.3666979670524597,
+        0.69193035364151,
+        0.4254383444786072
+      ],
+      "pred_bbox_pixel_xyxy": [
+        401,
+        147,
+        443,
+        170
+      ],
+      "pred_status": 0,
+      "found_probability": 0.002217013156041503,
+      "probabilities": [
+        0.9977830052375793,
+        0.002217013156041503,
+        4.335520137344062e-11
+      ]
+    },
+    {
+      "file": "sample_060__goal_04__goal_area_04__episode_064__step_001353.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=1353",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5406813025474548,
+        0.3858373761177063,
+        0.060836829245090485,
+        0.056064993143081665
+      ],
+      "pred_bbox_xyxy": [
+        0.5102629065513611,
+        0.35780489444732666,
+        0.5710996985435486,
+        0.41386985778808594
+      ],
+      "pred_bbox_pixel_xyxy": [
+        327,
+        143,
+        366,
+        166
+      ],
+      "pred_status": 0,
+      "found_probability": 0.09534946084022522,
+      "probabilities": [
+        0.9046505093574524,
+        0.09534946084022522,
+        1.7931909290780368e-09
+      ]
+    },
+    {
+      "file": "sample_061__goal_04__goal_area_04__episode_064__step_002012.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=2012",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.3302551507949829,
+        0.39187127351760864,
+        0.10888847708702087,
+        0.0864914059638977
+      ],
+      "pred_bbox_xyxy": [
+        0.2758108973503113,
+        0.3486255705356598,
+        0.38469940423965454,
+        0.4351169764995575
+      ],
+      "pred_bbox_pixel_xyxy": [
+        177,
+        139,
+        246,
+        174
+      ],
+      "pred_status": 0,
+      "found_probability": 0.42304086685180664,
+      "probabilities": [
+        0.5769591331481934,
+        0.42304086685180664,
+        6.803400953714345e-09
+      ]
+    },
+    {
+      "file": "sample_062__goal_04__goal_area_04__episode_064__step_000429.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=429",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5510905385017395,
+        0.4205995798110962,
+        0.060129307210445404,
+        0.070036381483078
+      ],
+      "pred_bbox_xyxy": [
+        0.5210258960723877,
+        0.385581374168396,
+        0.5811551809310913,
+        0.4556177854537964
+      ],
+      "pred_bbox_pixel_xyxy": [
+        333,
+        154,
+        372,
+        182
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9588471055030823,
+      "probabilities": [
+        0.041152890771627426,
+        0.9588471055030823,
+        3.961230454763154e-09
+      ]
+    },
+    {
+      "file": "sample_063__goal_04__goal_area_04__episode_064__step_000401.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=401",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6522414088249207,
+        0.4144248068332672,
+        0.05874040722846985,
+        0.07427487522363663
+      ],
+      "pred_bbox_xyxy": [
+        0.6228712201118469,
+        0.377287358045578,
+        0.6816115975379944,
+        0.4515622556209564
+      ],
+      "pred_bbox_pixel_xyxy": [
+        399,
+        151,
+        436,
+        181
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9979169964790344,
+      "probabilities": [
+        0.002082970691844821,
+        0.9979169964790344,
+        4.809728726407059e-10
+      ]
+    },
+    {
+      "file": "sample_064__goal_04__goal_area_04__episode_064__step_000941.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=941",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5372841358184814,
+        0.37983831763267517,
+        0.06301259249448776,
+        0.060129307210445404
+      ],
+      "pred_bbox_xyxy": [
+        0.5057778358459473,
+        0.34977367520332336,
+        0.5687904357910156,
+        0.409902960062027
+      ],
+      "pred_bbox_pixel_xyxy": [
+        324,
+        140,
+        364,
+        164
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0003301527467556298,
+      "probabilities": [
+        0.9996699094772339,
+        0.0003301527467556298,
+        2.474976473765267e-11
+      ]
+    },
+    {
+      "file": "sample_065__goal_04__goal_area_04__episode_064__step_002874.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=2874",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5600120425224304,
+        0.37022536993026733,
+        0.06301259249448776,
+        0.061553165316581726
+      ],
+      "pred_bbox_xyxy": [
+        0.5285057425498962,
+        0.3394487798213959,
+        0.5915183424949646,
+        0.4010019600391388
+      ],
+      "pred_bbox_pixel_xyxy": [
+        338,
+        136,
+        379,
+        160
+      ],
+      "pred_status": 0,
+      "found_probability": 0.00011591933434829116,
+      "probabilities": [
+        0.9998840093612671,
+        0.00011591933434829116,
+        1.2254646082621168e-11
+      ]
+    },
+    {
+      "file": "sample_066__goal_04__goal_area_04__episode_064__step_000023.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=23",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6976089477539062,
+        0.4125301241874695,
+        0.07212473452091217,
+        0.06526974588632584
+      ],
+      "pred_bbox_xyxy": [
+        0.6615465879440308,
+        0.37989524006843567,
+        0.7336713075637817,
+        0.4451650083065033
+      ],
+      "pred_bbox_pixel_xyxy": [
+        423,
+        152,
+        470,
+        178
+      ],
+      "pred_status": 0,
+      "found_probability": 0.030675802379846573,
+      "probabilities": [
+        0.9693241715431213,
+        0.030675802379846573,
+        1.5928854901758882e-09
+      ]
+    },
+    {
+      "file": "sample_067__goal_04__goal_area_04__episode_064__step_000975.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=975",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.685949444770813,
+        0.38722676038742065,
+        0.060836829245090485,
+        0.05738583952188492
+      ],
+      "pred_bbox_xyxy": [
+        0.6555310487747192,
+        0.3585338294506073,
+        0.7163678407669067,
+        0.415919691324234
+      ],
+      "pred_bbox_pixel_xyxy": [
+        420,
+        143,
+        458,
+        166
+      ],
+      "pred_status": 0,
+      "found_probability": 0.002287227427586913,
+      "probabilities": [
+        0.9977127313613892,
+        0.002287227427586913,
+        4.1131373307301544e-10
+      ]
+    },
+    {
+      "file": "sample_068__goal_04__goal_area_04__episode_064__step_001186.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=1186",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.42202815413475037,
+        0.36296918988227844,
+        0.06840942800045013,
+        0.06840942800045013
+      ],
+      "pred_bbox_xyxy": [
+        0.3878234326839447,
+        0.3287644684314728,
+        0.45623287558555603,
+        0.3971739113330841
+      ],
+      "pred_bbox_pixel_xyxy": [
+        248,
+        132,
+        292,
+        159
+      ],
+      "pred_status": 0,
+      "found_probability": 0.001098731067031622,
+      "probabilities": [
+        0.9989012479782104,
+        0.001098731067031622,
+        1.2242601030165723e-11
+      ]
+    },
+    {
+      "file": "sample_069__goal_04__goal_area_04__episode_064__step_000844.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=844",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5513321757316589,
+        0.39187127351760864,
+        0.06526974588632584,
+        0.061553165316581726
+      ],
+      "pred_bbox_xyxy": [
+        0.5186973214149475,
+        0.3610946834087372,
+        0.5839670300483704,
+        0.4226478636264801
+      ],
+      "pred_bbox_pixel_xyxy": [
+        332,
+        144,
+        374,
+        169
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0064882696606218815,
+      "probabilities": [
+        0.9935117363929749,
+        0.0064882696606218815,
+        3.449024954527147e-10
+      ]
+    },
+    {
+      "file": "sample_070__goal_04__goal_area_04__episode_064__step_000647.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=647",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4390257000923157,
+        0.2991051971912384,
+        0.14103002846240997,
+        0.21074961125850677
+      ],
+      "pred_bbox_xyxy": [
+        0.3685106933116913,
+        0.19373038411140442,
+        0.5095407366752625,
+        0.4044800102710724
+      ],
+      "pred_bbox_pixel_xyxy": [
+        236,
+        77,
+        326,
+        162
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999921321868896,
+      "probabilities": [
+        7.889262633398175e-06,
+        0.9999921321868896,
+        3.7009826626965836e-13
+      ]
+    },
+    {
+      "file": "sample_071__goal_04__goal_area_04__episode_064__step_003034.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=3034",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.590779185295105,
+        0.3988746404647827,
+        0.062278397381305695,
+        0.06301259249448776
+      ],
+      "pred_bbox_xyxy": [
+        0.5596399903297424,
+        0.36736834049224854,
+        0.6219183802604675,
+        0.4303809404373169
+      ],
+      "pred_bbox_pixel_xyxy": [
+        358,
+        147,
+        398,
+        172
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0004802972252946347,
+      "probabilities": [
+        0.9995197057723999,
+        0.0004802972252946347,
+        9.486129243230224e-11
+      ]
+    },
+    {
+      "file": "sample_072__goal_04__goal_area_04__episode_064__step_000067.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=67",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6034645438194275,
+        0.43638181686401367,
+        0.0637558326125145,
+        0.061553165316581726
+      ],
+      "pred_bbox_xyxy": [
+        0.5715866088867188,
+        0.4056052267551422,
+        0.6353424787521362,
+        0.46715840697288513
+      ],
+      "pred_bbox_pixel_xyxy": [
+        366,
+        162,
+        407,
+        187
+      ],
+      "pred_status": 0,
+      "found_probability": 0.21535073220729828,
+      "probabilities": [
+        0.7846492528915405,
+        0.21535073220729828,
+        1.0546007622735942e-08
+      ]
+    },
+    {
+      "file": "sample_073__goal_04__goal_area_04__episode_064__step_001709.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=1709",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6584175229072571,
+        0.2925952970981598,
+        0.09656908363103867,
+        0.10053607821464539
+      ],
+      "pred_bbox_xyxy": [
+        0.6101329922676086,
+        0.2423272579908371,
+        0.7067020535469055,
+        0.3428633213043213
+      ],
+      "pred_bbox_pixel_xyxy": [
+        390,
+        97,
+        452,
+        137
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9984021782875061,
+      "probabilities": [
+        0.0015978454612195492,
+        0.9984021782875061,
+        8.362119330307394e-11
+      ]
+    },
+    {
+      "file": "sample_074__goal_04__goal_area_04__episode_064__step_001280.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=1280",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6057990789413452,
+        0.38075897097587585,
+        0.061553165316581726,
+        0.05738583952188492
+      ],
+      "pred_bbox_xyxy": [
+        0.5750225186347961,
+        0.3520660400390625,
+        0.6365756392478943,
+        0.4094519019126892
+      ],
+      "pred_bbox_pixel_xyxy": [
+        368,
+        141,
+        407,
+        164
+      ],
+      "pred_status": 0,
+      "found_probability": 0.09877260029315948,
+      "probabilities": [
+        0.9012274742126465,
+        0.09877260029315948,
+        1.4925980451607757e-09
+      ]
+    },
+    {
+      "file": "sample_075__goal_04__goal_area_04__episode_064__step_001453.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=1453",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45665207505226135,
+        0.37983831763267517,
+        0.06450818479061127,
+        0.060129307210445404
+      ],
+      "pred_bbox_xyxy": [
+        0.4243979752063751,
+        0.34977367520332336,
+        0.4889061748981476,
+        0.409902960062027
+      ],
+      "pred_bbox_pixel_xyxy": [
+        272,
+        140,
+        313,
+        164
+      ],
+      "pred_status": 1,
+      "found_probability": 0.8074606657028198,
+      "probabilities": [
+        0.19253936409950256,
+        0.8074606657028198,
+        3.9152281416932055e-09
+      ]
+    },
+    {
+      "file": "sample_076__goal_04__goal_area_04__episode_064__step_002740.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=2740",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4685474932193756,
+        0.3720487952232361,
+        0.08351411670446396,
+        0.07693810760974884
+      ],
+      "pred_bbox_xyxy": [
+        0.4267904460430145,
+        0.33357974886894226,
+        0.5103045701980591,
+        0.4105178415775299
+      ],
+      "pred_bbox_pixel_xyxy": [
+        273,
+        133,
+        327,
+        164
+      ],
+      "pred_status": 0,
+      "found_probability": 0.055005285888910294,
+      "probabilities": [
+        0.9449946880340576,
+        0.055005285888910294,
+        6.274303299136363e-10
+      ]
+    },
+    {
+      "file": "sample_077__goal_04__goal_area_04__episode_064__step_002808.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=2808",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.435421347618103,
+        0.35309353470802307,
+        0.06450818479061127,
+        0.062278397381305695
+      ],
+      "pred_bbox_xyxy": [
+        0.4031672477722168,
+        0.3219543397426605,
+        0.46767544746398926,
+        0.3842327296733856
+      ],
+      "pred_bbox_pixel_xyxy": [
+        258,
+        129,
+        299,
+        154
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0017007224960252643,
+      "probabilities": [
+        0.9982993006706238,
+        0.0017007224960252643,
+        4.8391249340973275e-11
+      ]
+    },
+    {
+      "file": "sample_078__goal_04__goal_area_04__episode_064__step_000832.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=832",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5248817801475525,
+        0.3951341509819031,
+        0.06301259249448776,
+        0.059430524706840515
+      ],
+      "pred_bbox_xyxy": [
+        0.4933754801750183,
+        0.3654188811779022,
+        0.5563880801200867,
+        0.42484942078590393
+      ],
+      "pred_bbox_pixel_xyxy": [
+        316,
+        146,
+        356,
+        170
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0004802972252946347,
+      "probabilities": [
+        0.9995197057723999,
+        0.0004802972252946347,
+        4.411459739173118e-11
+      ]
+    },
+    {
+      "file": "sample_079__goal_04__goal_area_04__episode_064__step_001867.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=64:step=1867",
+      "source_goal": "goal_04",
+      "prompt": "Find the sign panel containing Area 4 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45181018114089966,
+        0.16559311747550964,
+        0.16101323068141937,
+        0.20453143119812012
+      ],
+      "pred_bbox_xyxy": [
+        0.3713035583496094,
+        0.06332740187644958,
+        0.5323168039321899,
+        0.2678588330745697
+      ],
+      "pred_bbox_pixel_xyxy": [
+        238,
+        25,
+        341,
+        107
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9582260847091675,
+      "probabilities": [
+        0.04177388176321983,
+        0.9582260847091675,
+        2.147768490834423e-10
+      ]
+    },
+    {
+      "file": "sample_080__goal_05__goal_area_05__episode_088__step_000746.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=746",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.3486451208591461,
+        0.23370636999607086,
+        0.1949949413537979,
+        0.27422067523002625
+      ],
+      "pred_bbox_xyxy": [
+        0.25114765763282776,
+        0.09659603238105774,
+        0.4461425840854645,
+        0.370816707611084
+      ],
+      "pred_bbox_pixel_xyxy": [
+        161,
+        39,
+        286,
+        148
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999955892562866,
+      "probabilities": [
+        4.356879799161106e-06,
+        0.9999955892562866,
+        6.431365314439608e-14
+      ]
+    },
+    {
+      "file": "sample_081__goal_05__goal_area_05__episode_088__step_000710.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=710",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45859116315841675,
+        0.27747300267219543,
+        0.15898041427135468,
+        0.21819572150707245
+      ],
+      "pred_bbox_xyxy": [
+        0.3791009485721588,
+        0.1683751344680786,
+        0.5380813479423523,
+        0.38657087087631226
+      ],
+      "pred_bbox_pixel_xyxy": [
+        243,
+        67,
+        344,
+        155
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999778270721436,
+      "probabilities": [
+        2.2125666873762384e-05,
+        0.9999778270721436,
+        1.4493049501403815e-13
+      ]
+    },
+    {
+      "file": "sample_082__goal_05__goal_area_05__episode_088__step_001403.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=1403",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5660185217857361,
+        0.3942009508609772,
+        0.06450818479061127,
+        0.05874040722846985
+      ],
+      "pred_bbox_xyxy": [
+        0.5337644219398499,
+        0.36483073234558105,
+        0.5982726216316223,
+        0.4235711693763733
+      ],
+      "pred_bbox_pixel_xyxy": [
+        342,
+        146,
+        383,
+        169
+      ],
+      "pred_status": 0,
+      "found_probability": 0.19744443893432617,
+      "probabilities": [
+        0.802555501461029,
+        0.19744443893432617,
+        7.708888638546796e-09
+      ]
+    },
+    {
+      "file": "sample_083__goal_05__goal_area_05__episode_088__step_001588.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=1588",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5874698758125305,
+        0.35398629307746887,
+        0.06301259249448776,
+        0.06761034578084946
+      ],
+      "pred_bbox_xyxy": [
+        0.5559635758399963,
+        0.32018113136291504,
+        0.6189761757850647,
+        0.3877914547920227
+      ],
+      "pred_bbox_pixel_xyxy": [
+        356,
+        128,
+        396,
+        155
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9235922694206238,
+      "probabilities": [
+        0.07640768587589264,
+        0.9235922694206238,
+        1.3604883886131347e-09
+      ]
+    },
+    {
+      "file": "sample_084__goal_05__goal_area_05__episode_088__step_000506.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=506",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.06278920918703079,
+        0.3812195360660553,
+        0.10464220494031906,
+        0.11519879847764969
+      ],
+      "pred_bbox_xyxy": [
+        0.010468106716871262,
+        0.32362014055252075,
+        0.11511030793190002,
+        0.43881893157958984
+      ],
+      "pred_bbox_pixel_xyxy": [
+        7,
+        129,
+        74,
+        176
+      ],
+      "pred_status": 0,
+      "found_probability": 0.014063626527786255,
+      "probabilities": [
+        0.9859364032745361,
+        0.014063626527786255,
+        6.739748342754481e-11
+      ]
+    },
+    {
+      "file": "sample_085__goal_05__goal_area_05__episode_088__step_000080.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=80",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4701283872127533,
+        0.4139508903026581,
+        0.08351411670446396,
+        0.07604019343852997
+      ],
+      "pred_bbox_xyxy": [
+        0.4283713400363922,
+        0.3759307861328125,
+        0.5118854641914368,
+        0.45197099447250366
+      ],
+      "pred_bbox_pixel_xyxy": [
+        274,
+        150,
+        328,
+        181
+      ],
+      "pred_status": 1,
+      "found_probability": 0.793105959892273,
+      "probabilities": [
+        0.20689405500888824,
+        0.793105959892273,
+        3.0659996763660047e-09
+      ]
+    },
+    {
+      "file": "sample_086__goal_05__goal_area_05__episode_088__step_000906.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=906",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5717666149139404,
+        0.3965354263782501,
+        0.0637558326125145,
+        0.05874040722846985
+      ],
+      "pred_bbox_xyxy": [
+        0.5398886799812317,
+        0.367165207862854,
+        0.6036445498466492,
+        0.42590564489364624
+      ],
+      "pred_bbox_pixel_xyxy": [
+        346,
+        147,
+        386,
+        170
+      ],
+      "pred_status": 0,
+      "found_probability": 0.00016865275392774493,
+      "probabilities": [
+        0.9998313188552856,
+        0.00016865275392774493,
+        4.277066201208157e-11
+      ]
+    },
+    {
+      "file": "sample_087__goal_05__goal_area_05__episode_088__step_002102.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=2102",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45834869146347046,
+        0.43014734983444214,
+        0.056064993143081665,
+        0.0511062890291214
+      ],
+      "pred_bbox_xyxy": [
+        0.4303162097930908,
+        0.40459421277046204,
+        0.4863811731338501,
+        0.45570048689842224
+      ],
+      "pred_bbox_pixel_xyxy": [
+        275,
+        162,
+        311,
+        182
+      ],
+      "pred_status": 0,
+      "found_probability": 0.3544330894947052,
+      "probabilities": [
+        0.6455669403076172,
+        0.3544330894947052,
+        1.3204548565681762e-08
+      ]
+    },
+    {
+      "file": "sample_088__goal_05__goal_area_05__episode_088__step_002051.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=2051",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4234579801559448,
+        0.4258439540863037,
+        0.05874040722846985,
+        0.05414556711912155
+      ],
+      "pred_bbox_xyxy": [
+        0.3940877914428711,
+        0.39877116680145264,
+        0.45282816886901855,
+        0.4529167413711548
+      ],
+      "pred_bbox_pixel_xyxy": [
+        252,
+        160,
+        290,
+        181
+      ],
+      "pred_status": 0,
+      "found_probability": 0.2429233193397522,
+      "probabilities": [
+        0.7570766806602478,
+        0.2429233193397522,
+        1.730897380980423e-08
+      ]
+    },
+    {
+      "file": "sample_089__goal_05__goal_area_05__episode_088__step_000634.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=634",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5003757476806641,
+        0.36296918988227844,
+        0.10169501602649689,
+        0.11846182495355606
+      ],
+      "pred_bbox_xyxy": [
+        0.4495282471179962,
+        0.3037382662296295,
+        0.5512232780456543,
+        0.42220011353492737
+      ],
+      "pred_bbox_pixel_xyxy": [
+        288,
+        121,
+        353,
+        169
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999953508377075,
+      "probabilities": [
+        4.637873644242063e-06,
+        0.9999953508377075,
+        2.154237041301823e-14
+      ]
+    },
+    {
+      "file": "sample_090__goal_05__goal_area_05__episode_088__step_001668.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=1668",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6183196306228638,
+        0.3182732164859772,
+        0.07876475900411606,
+        0.08449580520391464
+      ],
+      "pred_bbox_xyxy": [
+        0.5789372324943542,
+        0.27602532505989075,
+        0.6577020287513733,
+        0.3605211079120636
+      ],
+      "pred_bbox_pixel_xyxy": [
+        371,
+        110,
+        421,
+        144
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9950177073478699,
+      "probabilities": [
+        0.004982269834727049,
+        0.9950177073478699,
+        2.954579081393405e-10
+      ]
+    },
+    {
+      "file": "sample_091__goal_05__goal_area_05__episode_088__step_001432.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=1432",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.8397339582443237,
+        0.36931508779525757,
+        0.06962601840496063,
+        0.060129307210445404
+      ],
+      "pred_bbox_xyxy": [
+        0.8049209713935852,
+        0.33925044536590576,
+        0.8745469450950623,
+        0.3993797302246094
+      ],
+      "pred_bbox_pixel_xyxy": [
+        515,
+        136,
+        560,
+        160
+      ],
+      "pred_status": 1,
+      "found_probability": 0.7435405850410461,
+      "probabilities": [
+        0.2564593553543091,
+        0.7435405850410461,
+        1.1844408120964545e-08
+      ]
+    },
+    {
+      "file": "sample_092__goal_05__goal_area_05__episode_088__step_002754.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=2754",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.7049732804298401,
+        0.39840641617774963,
+        0.062278397381305695,
+        0.05738583952188492
+      ],
+      "pred_bbox_xyxy": [
+        0.6738340854644775,
+        0.3697134852409363,
+        0.7361124753952026,
+        0.427099347114563
+      ],
+      "pred_bbox_pixel_xyxy": [
+        431,
+        148,
+        471,
+        171
+      ],
+      "pred_status": 0,
+      "found_probability": 2.64657362691878e-09,
+      "probabilities": [
+        1.0,
+        2.64657362691878e-09,
+        1.3615261804274248e-13
+      ]
+    },
+    {
+      "file": "sample_093__goal_05__goal_area_05__episode_088__step_000752.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=752",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.30985841155052185,
+        0.19559408724308014,
+        0.2177281379699707,
+        0.30409225821495056
+      ],
+      "pred_bbox_xyxy": [
+        0.2009943425655365,
+        0.04354795813560486,
+        0.4187224805355072,
+        0.3476402163505554
+      ],
+      "pred_bbox_pixel_xyxy": [
+        129,
+        17,
+        268,
+        139
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999798536300659,
+      "probabilities": [
+        2.014569145103451e-05,
+        0.9999798536300659,
+        1.0277130708946647e-13
+      ]
+    },
+    {
+      "file": "sample_094__goal_05__goal_area_05__episode_088__step_002263.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=2263",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5037230849266052,
+        0.43014734983444214,
+        0.05352194607257843,
+        0.05229850113391876
+      ],
+      "pred_bbox_xyxy": [
+        0.4769621193408966,
+        0.40399810671806335,
+        0.5304840803146362,
+        0.4562965929508209
+      ],
+      "pred_bbox_pixel_xyxy": [
+        305,
+        162,
+        340,
+        183
+      ],
+      "pred_status": 1,
+      "found_probability": 0.929440438747406,
+      "probabilities": [
+        0.07055959850549698,
+        0.929440438747406,
+        1.6292718285626506e-08
+      ]
+    },
+    {
+      "file": "sample_095__goal_05__goal_area_05__episode_088__step_000529.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=529",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.10669060051441193,
+        0.3593641221523285,
+        0.12797954678535461,
+        0.14103002846240997
+      ],
+      "pred_bbox_xyxy": [
+        0.04270082712173462,
+        0.2888491153717041,
+        0.17068037390708923,
+        0.4298791289329529
+      ],
+      "pred_bbox_pixel_xyxy": [
+        27,
+        116,
+        109,
+        172
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9970190525054932,
+      "probabilities": [
+        0.0029810331761837006,
+        0.9970190525054932,
+        5.5945100982390805e-12
+      ]
+    },
+    {
+      "file": "sample_096__goal_05__goal_area_05__episode_088__step_002131.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=2131",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.49566659331321716,
+        0.42679935693740845,
+        0.05672123283147812,
+        0.05805886536836624
+      ],
+      "pred_bbox_xyxy": [
+        0.467305988073349,
+        0.3977699279785156,
+        0.5240272283554077,
+        0.45582878589630127
+      ],
+      "pred_bbox_pixel_xyxy": [
+        299,
+        159,
+        335,
+        182
+      ],
+      "pred_status": 0,
+      "found_probability": 0.44215473532676697,
+      "probabilities": [
+        0.5578453540802002,
+        0.44215473532676697,
+        1.8322815265037207e-08
+      ]
+    },
+    {
+      "file": "sample_097__goal_05__goal_area_05__episode_088__step_000309.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=309",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6288633942604065,
+        0.4344612956047058,
+        0.05169852823019028,
+        0.059430524706840515
+      ],
+      "pred_bbox_xyxy": [
+        0.6030141115188599,
+        0.40474602580070496,
+        0.6547126770019531,
+        0.46417656540870667
+      ],
+      "pred_bbox_pixel_xyxy": [
+        386,
+        162,
+        419,
+        186
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9343951344490051,
+      "probabilities": [
+        0.06560483574867249,
+        0.9343951344490051,
+        1.9757534275299804e-08
+      ]
+    },
+    {
+      "file": "sample_098__goal_05__goal_area_05__episode_088__step_001350.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=1350",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5062558054924011,
+        0.37983831763267517,
+        0.06962601840496063,
+        0.061553165316581726
+      ],
+      "pred_bbox_xyxy": [
+        0.4714427888393402,
+        0.3490617275238037,
+        0.5410687923431396,
+        0.41061490774154663
+      ],
+      "pred_bbox_pixel_xyxy": [
+        302,
+        140,
+        346,
+        164
+      ],
+      "pred_status": 0,
+      "found_probability": 0.10447732359170914,
+      "probabilities": [
+        0.8955226540565491,
+        0.10447732359170914,
+        2.279270772120867e-09
+      ]
+    },
+    {
+      "file": "sample_099__goal_05__goal_area_05__episode_088__step_001786.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=88:step=1786",
+      "source_goal": "goal_05",
+      "prompt": "Find the sign panel containing Area 5 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6406359076499939,
+        0.22815649211406708,
+        0.10584110021591187,
+        0.1286807656288147
+      ],
+      "pred_bbox_xyxy": [
+        0.5877153873443604,
+        0.16381610929965973,
+        0.6935564279556274,
+        0.29249686002731323
+      ],
+      "pred_bbox_pixel_xyxy": [
+        376,
+        66,
+        444,
+        117
+      ],
+      "pred_status": 1,
+      "found_probability": 0.999937891960144,
+      "probabilities": [
+        6.205048703122884e-05,
+        0.999937891960144,
+        1.0708568363645976e-12
+      ]
+    },
+    {
+      "file": "sample_100__goal_06__goal_area_06__episode_118__step_001336.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1336",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5153149962425232,
+        0.4002804160118103,
+        0.08400361984968185,
+        0.09491121768951416
+      ],
+      "pred_bbox_xyxy": [
+        0.47331318259239197,
+        0.3528248071670532,
+        0.557316780090332,
+        0.4477360248565674
+      ],
+      "pred_bbox_pixel_xyxy": [
+        303,
+        141,
+        357,
+        179
+      ],
+      "pred_status": 0,
+      "found_probability": 9.516251338936854e-06,
+      "probabilities": [
+        0.9999904632568359,
+        9.516251338936854e-06,
+        3.737853776497602e-12
+      ]
+    },
+    {
+      "file": "sample_101__goal_06__goal_area_06__episode_118__step_000551.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=551",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.8210441470146179,
+        0.23091977834701538,
+        0.15022294223308563,
+        0.22218088805675507
+      ],
+      "pred_bbox_xyxy": [
+        0.7459326982498169,
+        0.11982933431863785,
+        0.896155595779419,
+        0.3420102298259735
+      ],
+      "pred_bbox_pixel_xyxy": [
+        477,
+        48,
+        574,
+        137
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9993333220481873,
+      "probabilities": [
+        0.0006667023408226669,
+        0.9993333220481873,
+        1.2127059339367419e-12
+      ]
+    },
+    {
+      "file": "sample_102__goal_06__goal_area_06__episode_118__step_000873.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=873",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5365557670593262,
+        0.40686196088790894,
+        0.06526974588632584,
+        0.06962601840496063
+      ],
+      "pred_bbox_xyxy": [
+        0.5039209127426147,
+        0.372048944234848,
+        0.5691906213760376,
+        0.44167497754096985
+      ],
+      "pred_bbox_pixel_xyxy": [
+        323,
+        149,
+        364,
+        177
+      ],
+      "pred_status": 0,
+      "found_probability": 7.571149467366922e-07,
+      "probabilities": [
+        0.9999992847442627,
+        7.571149467366922e-07,
+        2.7936683457026323e-13
+      ]
+    },
+    {
+      "file": "sample_103__goal_06__goal_area_06__episode_118__step_000629.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=629",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45084288716316223,
+        0.38954657316207886,
+        0.07254979014396667,
+        0.07212473452091217
+      ],
+      "pred_bbox_xyxy": [
+        0.4145680069923401,
+        0.35348421335220337,
+        0.4871177673339844,
+        0.42560893297195435
+      ],
+      "pred_bbox_pixel_xyxy": [
+        265,
+        141,
+        312,
+        170
+      ],
+      "pred_status": 0,
+      "found_probability": 1.0783312973217107e-05,
+      "probabilities": [
+        0.9999892711639404,
+        1.0783312973217107e-05,
+        2.5689838711179247e-12
+      ]
+    },
+    {
+      "file": "sample_104__goal_06__goal_area_06__episode_118__step_000144.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=144",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.45495641231536865,
+        0.3890821933746338,
+        0.08254312723875046,
+        0.10169501602649689
+      ],
+      "pred_bbox_xyxy": [
+        0.4136848449707031,
+        0.33823469281196594,
+        0.4962279796600342,
+        0.43992969393730164
+      ],
+      "pred_bbox_pixel_xyxy": [
+        265,
+        135,
+        318,
+        176
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9975656270980835,
+      "probabilities": [
+        0.0024343819823116064,
+        0.9975656270980835,
+        4.83556840402688e-11
+      ]
+    },
+    {
+      "file": "sample_105__goal_06__goal_area_06__episode_118__step_001383.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1383",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.3293917179107666,
+        0.30985841155052185,
+        0.13953560590744019,
+        0.17267289757728577
+      ],
+      "pred_bbox_xyxy": [
+        0.2596239149570465,
+        0.22352196276187897,
+        0.3991595208644867,
+        0.3961948752403259
+      ],
+      "pred_bbox_pixel_xyxy": [
+        166,
+        89,
+        255,
+        158
+      ],
+      "pred_status": 0,
+      "found_probability": 0.00011959858238697052,
+      "probabilities": [
+        0.9998804330825806,
+        0.00011959858238697052,
+        1.6942439747154314e-13
+      ]
+    },
+    {
+      "file": "sample_106__goal_06__goal_area_06__episode_118__step_001074.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1074",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6095241904258728,
+        0.40450742840766907,
+        0.07648788392543793,
+        0.07648788392543793
+      ],
+      "pred_bbox_xyxy": [
+        0.5712802410125732,
+        0.3662634789943695,
+        0.6477681398391724,
+        0.44275137782096863
+      ],
+      "pred_bbox_pixel_xyxy": [
+        366,
+        147,
+        415,
+        177
+      ],
+      "pred_status": 0,
+      "found_probability": 0.0001795279822545126,
+      "probabilities": [
+        0.9998205304145813,
+        0.0001795279822545126,
+        1.623373657722027e-11
+      ]
+    },
+    {
+      "file": "sample_107__goal_06__goal_area_06__episode_118__step_000860.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=860",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5331543684005737,
+        0.39793843030929565,
+        0.06526974588632584,
+        0.06526974588632584
+      ],
+      "pred_bbox_xyxy": [
+        0.5005195140838623,
+        0.36530354619026184,
+        0.5657892227172852,
+        0.43057331442832947
+      ],
+      "pred_bbox_pixel_xyxy": [
+        320,
+        146,
+        362,
+        172
+      ],
+      "pred_status": 0,
+      "found_probability": 4.2228334677929524e-06,
+      "probabilities": [
+        0.9999958276748657,
+        4.2228334677929524e-06,
+        1.3327799150766872e-12
+      ]
+    },
+    {
+      "file": "sample_108__goal_06__goal_area_06__episode_118__step_001104.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1104",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5079339146614075,
+        0.41063806414604187,
+        0.06881255656480789,
+        0.0712820366024971
+      ],
+      "pred_bbox_xyxy": [
+        0.4735276401042938,
+        0.3749970495700836,
+        0.5423402190208435,
+        0.4462790787220001
+      ],
+      "pred_bbox_pixel_xyxy": [
+        303,
+        150,
+        347,
+        179
+      ],
+      "pred_status": 0,
+      "found_probability": 0.005469274241477251,
+      "probabilities": [
+        0.9945307374000549,
+        0.005469274241477251,
+        5.78195380462887e-10
+      ]
+    },
+    {
+      "file": "sample_109__goal_06__goal_area_06__episode_118__step_001008.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1008",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.4732920229434967,
+        0.40827676653862,
+        0.06604058295488358,
+        0.06682075560092926
+      ],
+      "pred_bbox_xyxy": [
+        0.4402717351913452,
+        0.37486639618873596,
+        0.5063123106956482,
+        0.44168713688850403
+      ],
+      "pred_bbox_pixel_xyxy": [
+        282,
+        150,
+        324,
+        177
+      ],
+      "pred_status": 0,
+      "found_probability": 0.000552778597921133,
+      "probabilities": [
+        0.9994471669197083,
+        0.000552778597921133,
+        5.576202694035359e-11
+      ]
+    },
+    {
+      "file": "sample_110__goal_06__goal_area_06__episode_118__step_001270.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1270",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.6783269047737122,
+        0.40874865651130676,
+        0.07648788392543793,
+        0.07170215249061584
+      ],
+      "pred_bbox_xyxy": [
+        0.6400829553604126,
+        0.37289756536483765,
+        0.7165708541870117,
+        0.4445997476577759
+      ],
+      "pred_bbox_pixel_xyxy": [
+        410,
+        149,
+        459,
+        178
+      ],
+      "pred_status": 0,
+      "found_probability": 3.966986241721315e-06,
+      "probabilities": [
+        0.9999960660934448,
+        3.966986241721315e-06,
+        1.1513464660828365e-11
+      ]
+    },
+    {
+      "file": "sample_111__goal_06__goal_area_06__episode_118__step_000318.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=318",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5399537086486816,
+        0.3250918686389923,
+        0.1373145580291748,
+        0.16678565740585327
+      ],
+      "pred_bbox_xyxy": [
+        0.47129642963409424,
+        0.24169903993606567,
+        0.608610987663269,
+        0.40848469734191895
+      ],
+      "pred_bbox_pixel_xyxy": [
+        302,
+        97,
+        390,
+        163
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999657869338989,
+      "probabilities": [
+        3.426849434617907e-05,
+        0.9999657869338989,
+        4.8545047240953e-14
+      ]
+    },
+    {
+      "file": "sample_112__goal_06__goal_area_06__episode_118__step_001341.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=1341",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.48883238434791565,
+        0.36931508779525757,
+        0.10464220494031906,
+        0.13151384890079498
+      ],
+      "pred_bbox_xyxy": [
+        0.4365112781524658,
+        0.3035581707954407,
+        0.5411534905433655,
+        0.43507200479507446
+      ],
+      "pred_bbox_pixel_xyxy": [
+        279,
+        121,
+        346,
+        174
+      ],
+      "pred_status": 0,
+      "found_probability": 8.139692909026053e-06,
+      "probabilities": [
+        0.9999918937683105,
+        8.139692909026053e-06,
+        1.252025935184753e-12
+      ]
+    },
+    {
+      "file": "sample_113__goal_06__goal_area_06__episode_118__step_000973.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=973",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5406813025474548,
+        0.41063806414604187,
+        0.06682075560092926,
+        0.06761034578084946
+      ],
+      "pred_bbox_xyxy": [
+        0.5072709321975708,
+        0.37683290243148804,
+        0.5740916728973389,
+        0.4444432258605957
+      ],
+      "pred_bbox_pixel_xyxy": [
+        325,
+        151,
+        367,
+        178
+      ],
+      "pred_status": 0,
+      "found_probability": 7.254361116793007e-05,
+      "probabilities": [
+        0.9999274015426636,
+        7.254361116793007e-05,
+        8.163708424546723e-12
+      ]
+    },
+    {
+      "file": "sample_114__goal_06__goal_area_06__episode_118__step_000222.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=222",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.35309353470802307,
+        0.34510529041290283,
+        0.11455481499433517,
+        0.13953560590744019
+      ],
+      "pred_bbox_xyxy": [
+        0.2958161234855652,
+        0.27533748745918274,
+        0.41037094593048096,
+        0.4148730933666229
+      ],
+      "pred_bbox_pixel_xyxy": [
+        189,
+        110,
+        263,
+        166
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999125003814697,
+      "probabilities": [
+        8.750300185056403e-05,
+        0.9999125003814697,
+        3.3695144114123665e-13
+      ]
+    },
+    {
+      "file": "sample_115__goal_06__goal_area_06__episode_118__step_000964.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=964",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5007362365722656,
+        0.4059196412563324,
+        0.07604019343852997,
+        0.07648788392543793
+      ],
+      "pred_bbox_xyxy": [
+        0.46271613240242004,
+        0.36767569184303284,
+        0.5387563109397888,
+        0.44416359066963196
+      ],
+      "pred_bbox_pixel_xyxy": [
+        296,
+        147,
+        345,
+        178
+      ],
+      "pred_status": 0,
+      "found_probability": 9.610241977497935e-05,
+      "probabilities": [
+        0.9999039173126221,
+        9.610241977497935e-05,
+        1.432741772444679e-11
+      ]
+    },
+    {
+      "file": "sample_116__goal_06__goal_area_06__episode_118__step_000400.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=400",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.2523840367794037,
+        0.11757213622331619,
+        0.2816905379295349,
+        0.33434221148490906
+      ],
+      "pred_bbox_xyxy": [
+        0.11153876781463623,
+        0.0,
+        0.39322930574417114,
+        0.2847432494163513
+      ],
+      "pred_bbox_pixel_xyxy": [
+        71,
+        0,
+        252,
+        114
+      ],
+      "pred_status": 1,
+      "found_probability": 0.9999417066574097,
+      "probabilities": [
+        5.829126530443318e-05,
+        0.9999417066574097,
+        2.543517425759173e-13
+      ]
+    },
+    {
+      "file": "sample_117__goal_06__goal_area_06__episode_118__step_000859.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=859",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5428633093833923,
+        0.3951341509819031,
+        0.07044915854930878,
+        0.06761034578084946
+      ],
+      "pred_bbox_xyxy": [
+        0.5076387524604797,
+        0.36132898926734924,
+        0.5780878663063049,
+        0.4289393126964569
+      ],
+      "pred_bbox_pixel_xyxy": [
+        325,
+        145,
+        370,
+        172
+      ],
+      "pred_status": 0,
+      "found_probability": 1.760343138812459e-06,
+      "probabilities": [
+        0.9999982118606567,
+        1.760343138812459e-06,
+        7.593969398624056e-13
+      ]
+    },
+    {
+      "file": "sample_118__goal_06__goal_area_06__episode_118__step_000661.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=661",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.48858842253685,
+        0.39606815576553345,
+        0.07086437940597534,
+        0.06962601840496063
+      ],
+      "pred_bbox_xyxy": [
+        0.4531562328338623,
+        0.36125513911247253,
+        0.5240206122398376,
+        0.43088117241859436
+      ],
+      "pred_bbox_pixel_xyxy": [
+        290,
+        145,
+        335,
+        172
+      ],
+      "pred_status": 0,
+      "found_probability": 2.1444948288262822e-05,
+      "probabilities": [
+        0.9999785423278809,
+        2.1444948288262822e-05,
+        3.6228088671347303e-12
+      ]
+    },
+    {
+      "file": "sample_119__goal_06__goal_area_06__episode_118__step_000875.png",
+      "source": "dataset:/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding:episode=118:step=875",
+      "source_goal": "goal_06",
+      "prompt": "Find the sign panel containing Area 6 and use it to choose the navigation action. ",
+      "model_input_keys": [
+        "attention_mask",
+        "embodiment_id",
+        "image_grid_thw",
+        "input_ids",
+        "pixel_values",
+        "sign_query_index",
+        "state"
+      ],
+      "sign_query_index": [
+        128
+      ],
+      "pred_bbox_cxcywh": [
+        0.5156199336051941,
+        0.403566837310791,
+        0.06301259249448776,
+        0.06761034578084946
+      ],
+      "pred_bbox_xyxy": [
+        0.4841136336326599,
+        0.3697616755962372,
+        0.5471262335777283,
+        0.43737199902534485
+      ],
+      "pred_bbox_pixel_xyxy": [
+        310,
+        148,
+        350,
+        175
+      ],
+      "pred_status": 0,
+      "found_probability": 7.571149467366922e-07,
+      "probabilities": [
+        0.9999992847442627,
+        7.571149467366922e-07,
+        3.165640763847649e-13
+      ]
+    }
+  ],
+  "dataset": "/nas/sujinkim/data/SignNav/sim_v2_lerobot_sign_grounding",
+  "num_samples_per_episode": 20,
+  "seed": 1999,
+  "selected_episode_by_goal": {
+    "goal_01": 13,
+    "goal_02": 20,
+    "goal_03": 52,
+    "goal_04": 64,
+    "goal_05": 88,
+    "goal_06": 118
+  }
+}
